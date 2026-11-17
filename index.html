@@ -205,17 +205,19 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <button data-level="1" aria-pressed="true" type="button">Standard</button>
         <button data-level="2" aria-pressed="false" type="button">High</button>
       </div>
+      <label class="check"><input id="returning" type="checkbox"> Returning customer: they already own the lights (labor only)</label>
       <div class="quote" id="quote-card" aria-live="polite">
         <div class="line"><span id="q-roof-label">Roofline lights</span><span id="q-roof">$0</span></div>
         <div class="line" id="q-ridge-row" hidden><span id="q-ridge-label">Ridge line</span><span id="q-ridge">$0</span></div>
         <div class="line" id="q-yard-row" hidden><span id="q-yard-label">Trees and bushes</span><span id="q-yard">$0</span></div>
         <div class="line" id="q-walk-row" hidden><span id="q-walk-label">Walkway</span><span id="q-walk">$0</span></div>
+        <div class="line" id="q-min-row" hidden><span>Minimum job charge</span><span id="q-min">$0</span></div>
         <div class="total"><span>Total</span><b id="q-total">$0</b></div>
         <div class="halves">
           <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
           <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
         </div>
-        <p class="fine">You keep the lights. Takedown is included.</p>
+        <p class="fine" id="q-fine">You keep the lights. Takedown is included. Final feet confirmed on install day.</p>
       </div>
       <div class="grid2">
         <label class="f">Name<input id="c-name" type="text" autocomplete="off"></label>
@@ -255,6 +257,8 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <label class="f">Minutes per net<input id="s-netmin" type="number" step="1" inputmode="numeric"></label>
         <label class="f">Minutes per tree strand<input id="s-strandmin" type="number" step="1" inputmode="numeric"></label>
         <label class="f">Roof overhang extra, %<input id="s-overhang" type="number" step="1" inputmode="numeric"></label>
+        <label class="f">Tape-measure correction, % (+ or −)<input id="s-fix" type="number" step="1" inputmode="numeric"></label>
+        <label class="f">Minimum job, $<input id="s-minjob" type="number" step="5" inputmode="numeric"></label>
       </div>
       <div class="row"><button class="btn small" id="cost-hq" type="button">HQ pack $1.99/ft</button><button class="btn small" id="cost-bulk" type="button">Bulk $1.00/ft</button></div>
       <p class="fine">Speeds are starting guesses. Put in your real times after your first few houses. Trunk wrap = about 1.5 mini strands; full trees = 6 / 9 / 12.5 strands (small / medium / large).</p>
@@ -306,8 +310,14 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
     <section class="card">
       <h2>All quotes</h2>
       <div id="leads-all" class="results"></div>
-      <div class="row"><button class="btn small" id="export" type="button">Copy all as backup</button></div>
-      <p class="fine">Quotes are saved on this phone. Use Add to Home Screen so they stay put.</p>
+      <div class="row">
+        <button class="btn small primary" id="backup" type="button">Back up (send a file)</button>
+        <label class="btn small filebtn" for="restore-in">Restore a backup</label>
+        <input id="restore-in" type="file" accept="application/json,.json" hidden>
+        <button class="btn small" id="export" type="button">Copy all</button>
+      </div>
+      <p class="muted" id="backup-note"></p>
+      <p class="fine">Quotes are saved on this phone. Back up after a day of knocking: email or text the file to yourself.</p>
     </section>
   </div>
 </main>
@@ -319,8 +329,10 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:1.65, costtimer:22, pace:40, downpace:90, walkpace:100, netmin:10, strandmin:10, overhang:5};
+const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:1.65, costtimer:22, pace:40, downpace:90, walkpace:100, netmin:10, strandmin:10, overhang:5, fix:0, minjob:250};
 const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
+// Council #3 item 15 (his yes): keep his costs on the phone so a later version can drop them from the public page.
+if (!store.get("lq-settings", null)) store.set("lq-settings", S);
 // Prices from the 11/16 council (his ask: ground work, bushes and trees cheaper). [low, standard, high]
 const PRICES = {
   roof:  [6.00, 6.50, 7.50],   // per ft, 1 story
@@ -362,12 +374,20 @@ function pointInPoly(pt, poly){
   return inside;
 }
 
+// Nominatim's usage policy: at most 1 request a second; repeat lookups come from a cache.
+const nomCache = new Map(); let nomLast = 0;
+async function nominatim(url){
+  if (nomCache.has(url)) return nomCache.get(url);
+  const wait = 1100 - (Date.now() - nomLast); if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  nomLast = Date.now();
+  const r = await fetch(url, {headers:{"Accept":"application/json"}});
+  if (!r.ok) throw new Error("Address lookup failed (" + r.status + ")");
+  const j = await r.json(); nomCache.set(url, j); return j;
+}
 async function geocode(q){
   // biased toward Southern California, but anywhere in the US still matches
   const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&limit=5&addressdetails=1&viewbox=-120.7,35.8,-114.1,32.5&q=" + encodeURIComponent(q);
-  const r = await fetch(url, {headers:{"Accept":"application/json"}});
-  if (!r.ok) throw new Error("Address lookup failed (" + r.status + ")");
-  return r.json();
+  return nominatim(url);
 }
 // Houses and streets both come from Overture Maps' public tile files (a static file on Amazon S3, about a
 // second per tile). Overture's buildings already include OpenStreetMap's, plus Microsoft's and Google's
@@ -634,6 +654,7 @@ $("lower-plus").onclick = () => { st.lower += 5; update(); };
 $("ridge-minus").onclick = () => { st.ridge = Math.max(0, st.ridge - 5); update(); };
 $("ridge-plus").onclick = () => { st.ridge += 5; update(); };
 $("manual-feet").addEventListener("input", update);
+$("returning").addEventListener("change", () => { st.returning = $("returning").checked; update(); });
 // "Here": the nearest county address point to where he's standing
 $("here").onclick = () => {
   if (!navigator.geolocation){ toast("Location isn't available here"); return; }
@@ -643,7 +664,7 @@ $("here").onclick = () => {
     try{
       const near = await nearestAddress(lat, lon);
       let city = "";
-      try{ const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${lat}&lon=${lon}`); const j = await r.json(); city = (j.address && (j.address.city || j.address.town || j.address.village)) || ""; }catch(e){}
+      try{ const j = await nominatim(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`); city = (j.address && (j.address.city || j.address.town || j.address.village)) || ""; }catch(e){}
       if (!near){ $("map-hint").textContent = "Couldn't find an address here. Type it instead."; return; }
       $("addr").value = [near.number + " " + near.street, city].filter(Boolean).join(", ");
       $("addr-form").requestSubmit();
@@ -679,7 +700,9 @@ function roofFeet(){
   const man = parseFloat($("manual-feet").value);
   if (man > 0) return {feet: Math.round(man), src:"typed in"};
   const w = wallFeet();
-  const gut = st.gutters ? w * (1 + S.overhang/100) : 0, pk = st.peaks ? w * PEAKS : 0, low = st.story === 2 ? st.lower : 0;
+  // his tape-measure correction (council #3 item 1) scales the map's walls; 0 until he has measured
+  const wf = w * (1 + (S.fix || 0)/100);
+  const gut = st.gutters ? wf * (1 + S.overhang/100) : 0, pk = st.peaks ? wf * PEAKS : 0, low = st.story === 2 ? st.lower : 0;
   const parts = [];
   if (gut) parts.push(`gutters ${Math.round(gut)}`);
   if (pk) parts.push(`peaks ${Math.round(pk)}`);
@@ -690,22 +713,32 @@ function rate(k, lvl){ if (k === "roof") return (st.story === 2 ? PRICES.roof2 :
 function priceAt(lvl){
   const {feet} = roofFeet(), nets = st.small + 2*st.big, walkFt = st.walk ? Math.max(20, st.walk) : 0;
   const ridgeFt = st.ridgeOn ? st.ridge : 0;
-  const roof = feet * rate("roof", lvl), ridge = ridgeFt * (rate("roof", lvl) + RIDGE_EXTRA);
-  const yard = nets*rate("net", lvl) + st.trunk*rate("trunk", lvl) + st.canS*rate("canS", lvl) + st.canM*rate("canM", lvl) + st.canL*rate("canL", lvl);
-  const walk = walkFt * rate("walk", lvl);
-  return {feet, ridgeFt, nets, walkFt, roof, ridge, yard, walk, total: roof + ridge + yard + walk};
+  let roof = feet * rate("roof", lvl), ridge = ridgeFt * (rate("roof", lvl) + RIDGE_EXTRA);
+  let yard = nets*rate("net", lvl) + st.trunk*rate("trunk", lvl) + st.canS*rate("canS", lvl) + st.canM*rate("canM", lvl) + st.canL*rate("canL", lvl);
+  let walk = walkFt * rate("walk", lvl);
+  // Returning customer (council #3 item 15): they own the lights, so each line drops what the lights cost us.
+  if (st.returning){
+    const strands = st.trunk*STRANDS.trunk + st.canS*STRANDS.canS + st.canM*STRANDS.canM + st.canL*STRANDS.canL;
+    roof = Math.max(0, roof - feet*S.costft); ridge = Math.max(0, ridge - ridgeFt*S.costft);
+    yard = Math.max(0, yard - nets*S.costnet - strands*S.coststrand); walk = Math.max(0, walk - walkFt*S.costwalk);
+  }
+  const raw = roof + ridge + yard + walk;
+  // Minimum job (council #3 item 6): small jobs lose money after the timer, the drive and the ladder trips.
+  const minAdd = raw > 0 && raw < S.minjob ? S.minjob - raw : 0;
+  return {feet, ridgeFt, nets, walkFt, roof, ridge, yard, walk, minAdd, total: raw + minAdd};
 }
 function costs(p){
   const strands = st.trunk*STRANDS.trunk + st.canS*STRANDS.canS + st.canM*STRANDS.canM + st.canL*STRANDS.canL;
   // his call 11/16: every house keeps its own timer (the pack has one), so each job carries one
-  const timer = p.total > 0 ? S.costtimer : 0;
-  const materials = (p.feet + p.ridgeFt)*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk + timer;
+  const timer = p.total > 0 && !st.returning ? S.costtimer : 0;
+  const lights = st.returning ? 0 : 1;   // a returning customer already owns the lights
+  const materials = lights * ((p.feet + p.ridgeFt)*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk) + timer;
   const install = p.feet/S.pace + p.ridgeFt/(S.pace*0.6) + p.nets*S.netmin/60 + strands*S.strandmin/60 + p.walkFt/S.walkpace;
   const down = p.feet/S.downpace + p.ridgeFt/(S.downpace*0.6) + p.nets*(S.netmin/2)/60 + strands*(S.strandmin/2)/60 + p.walkFt/(S.walkpace*2);
-  const parts = [["Roofline lights", (p.feet + p.ridgeFt)*S.costft, `${p.feet + p.ridgeFt} ft × $${S.costft.toFixed(2)}`],
-    ["Bush nets", p.nets*S.costnet, `${p.nets} × $${S.costnet}`],
-    ["Tree lights", strands*S.coststrand, `${strands} strands × $${S.coststrand}`],
-    ["Walkway lights", p.walkFt*S.costwalk, `${p.walkFt} ft × $${S.costwalk.toFixed(2)}`],
+  const parts = [["Roofline lights", lights*(p.feet + p.ridgeFt)*S.costft, `${p.feet + p.ridgeFt} ft × $${S.costft.toFixed(2)}`],
+    ["Bush nets", lights*p.nets*S.costnet, `${p.nets} × $${S.costnet}`],
+    ["Tree lights", lights*strands*S.coststrand, `${strands} strands × $${S.coststrand}`],
+    ["Walkway lights", lights*p.walkFt*S.costwalk, `${p.walkFt} ft × $${S.costwalk.toFixed(2)}`],
     ["Timer", timer, "1 per house"]].filter(r => r[1] > 0);
   return {materials, install, down, hours: install + down, parts};
 }
@@ -725,6 +758,8 @@ function update(){
   $("q-ridge-row").hidden = !p.ridge; $("q-ridge-label").textContent = `Ridge line, ${p.ridgeFt} ft`; $("q-ridge").textContent = money(p.ridge);
   $("q-yard-row").hidden = !p.yard; $("q-yard-label").textContent = "Trees and bushes, " + yardLabel(); $("q-yard").textContent = money(p.yard);
   $("q-walk-row").hidden = !p.walk; $("q-walk-label").textContent = `Walkway, ${p.walkFt} ft`; $("q-walk").textContent = money(p.walk);
+  $("q-min-row").hidden = !p.minAdd; $("q-min").textContent = "+" + money(p.minAdd);
+  $("q-fine").textContent = (st.returning ? "You already own the lights; this covers install and takedown." : "You keep the lights. Takedown is included.") + " Final feet confirmed on install day.";
   $("q-total").textContent = money(p.total);
   const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
   // running total bar and the $1,000 limit
@@ -747,7 +782,8 @@ function update(){
 const SKEYS = Object.keys(DEFAULTS);
 SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener("input", () => {
   if (k === "seller"){ S.seller = el.value; store.set("lq-settings", S); return; }
-  const v = parseFloat(el.value); if (v > 0 || (k === "overhang" && v >= 0)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
+  const v = parseFloat(el.value);
+  if (v > 0 || ((k === "overhang" || k === "minjob") && v >= 0) || (k === "fix" && !isNaN(v) && v > -50 && v < 50)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
 $("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
 $("cost-bulk").onclick = () => { S.costft = 1.00; $("s-costft").value = 1.00; store.set("lq-settings", S); update(); };
 
@@ -889,6 +925,7 @@ $("pdf-btn").onclick = async () => {
   if (p.ridge) rows.push([`Ridge line (${p.ridgeFt} ft)`, p.ridge]);
   if (p.yard) rows.push([`Trees and bushes (${yardLabel()})`, p.yard]);
   if (p.walk) rows.push([`Walkway (${p.walkFt} ft)`, p.walk]);
+  if (p.minAdd) rows.push(["Minimum job charge", p.minAdd]);
   const colR = W - M;
   doc.setFontSize(12); doc.setTextColor(23, 35, 29); doc.setFont("helvetica", "normal");
   for (const [label, amt] of rows){ doc.text(doc.splitTextToSize(label, colR - tx - 80), tx, ty + 12); doc.text(money(amt), colR, ty + 12, {align:"right"}); ty += 24; }
@@ -900,7 +937,9 @@ $("pdf-btn").onclick = async () => {
   y = Math.max(y, ty) + 20;
   doc.setTextColor(23, 35, 29); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.text("What's included", M, y); y += 16;
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-  const inc = ["Lights put up on the lines listed above.", "You keep the lights after the season.", "We come back and take them down. Takedown is included in the price."];
+  const inc = st.returning
+    ? ["Your lights put back up on the lines listed above.", "We come back and take them down. Takedown is included in the price.", "Final feet are confirmed on install day."]
+    : ["Lights put up on the lines listed above.", "You keep the lights after the season.", "We come back and take them down. Takedown is included in the price.", "Final feet are confirmed on install day."];
   inc.forEach(t => { doc.text("•  " + t, M, y); y += 15; });
   y += 26; doc.setDrawColor(150, 160, 155);
   doc.line(M, y, M + 220, y); doc.line(M + 260, y, M + 400, y);
@@ -921,8 +960,9 @@ function quoteText(lead){
   if (p.ridge) parts.push(`Ridge line (${p.ridgeFt} ft): ${money(p.ridge)}`);
   if (p.yard) parts.push(`Trees and bushes (${p.yardLabel}): ${money(p.yard)}`);
   if (p.walk) parts.push(`Walkway (${p.walkFt} ft): ${money(p.walk)}`);
+  if (p.minAdd) parts.push(`Minimum job charge: +${money(p.minAdd)}`);
   parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
-  parts.push("You keep the lights, and takedown is included. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
+  parts.push((p.returning ? "You already own the lights; this covers install and takedown." : "You keep the lights, and takedown is included.") + " Final feet confirmed on install day. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
   return parts.join("\n");
 }
 const FOLLOW = [
@@ -945,7 +985,7 @@ function saveLead(sent){
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
-    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
+    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
       walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
   const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
@@ -989,6 +1029,37 @@ function renderLeads(){
   all.forEach(l => allBox.appendChild(card(l, false)));
 }
 function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); store.set("lq-leads", all); renderLeads(); renderStock(); } }
+// Back up everything (leads, stock, settings) as one file through the share sheet: email or text it to yourself.
+function backupData(){ return {app:"light-quote", version:1, saved: new Date().toISOString(), leads: leads(), stock: stockData(), settings: S}; }
+$("backup").onclick = async () => {
+  const d = backupData(), t = new Date(), name = "light-quote-backup-" + [t.getFullYear(), String(t.getMonth()+1).padStart(2,"0"), String(t.getDate()).padStart(2,"0")].join("-") + ".json";
+  await shareFile(new Blob([JSON.stringify(d, null, 1)], {type:"application/json"}), name, "Light Quote backup");
+  try{ localStorage.setItem("lq-lastbackup", d.saved); }catch(e){}
+  showBackupNote();
+};
+// Restore merges: nothing already on the phone is deleted; same-id quotes and purchases are kept once.
+$("restore-in").addEventListener("change", async ev => {
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  try{
+    const d = JSON.parse(await f.text());
+    if (d.app !== "light-quote") throw new Error("not a Light Quote backup");
+    const mine = leads(), ids = new Set(mine.map(l => l.id));
+    const addL = (d.leads || []).filter(l => !ids.has(l.id));
+    store.set("lq-leads", mine.concat(addL).sort((a, b) => b.created - a.created));
+    const sd = stockData(), bids = new Set(sd.buys.map(b => b.id));
+    const addB = ((d.stock && d.stock.buys) || []).filter(b => !bids.has(b.id));
+    sd.buys = sd.buys.concat(addB); store.set("lq-stock", sd);
+    if (d.settings){ Object.assign(S, d.settings); store.set("lq-settings", S); SKEYS.forEach(k => { const el = $("s-" + k); if (el) el.value = S[k]; }); }
+    renderLeads(); renderStock(); update();
+    toast(`Restored ${addL.length} quotes and ${addB.length} purchases`);
+  }catch(e){ toast("That file isn't a Light Quote backup"); }
+  ev.target.value = "";
+});
+function showBackupNote(){
+  let last = null; try{ last = localStorage.getItem("lq-lastbackup"); }catch(e){}
+  $("backup-note").textContent = last ? "Last backup: " + new Date(last).toLocaleString("en-US", {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}) + "." : "Not backed up yet. Your quotes live only on this phone.";
+}
+showBackupNote();
 $("export").onclick = async () => {
   const txt = JSON.stringify(leads(), null, 1);
   try{ await navigator.clipboard.writeText(txt); toast("Copied. Paste it in a text to yourself"); }
@@ -1017,6 +1088,7 @@ const PRESETS = [
 const BULBS_PER_FT = 0.8;   // 15" spacing
 function jobNeeds(q){
   q = q || {};
+  if (q.returning) return {wire:0, bulbs:0, clips:0, nets:0, strands:0, stakes:0, timers:0, cords:0};
   const roofFt = (q.feet || 0) + (q.ridgeFt || 0), walkFt = q.walkFt || 0;
   const bulbs = Math.ceil((roofFt + walkFt) * BULBS_PER_FT);
   return {wire: roofFt + walkFt, bulbs, clips: Math.ceil(roofFt * BULBS_PER_FT), nets: q.nets || 0,
