@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 /* Layout: one phone column. Measure, then price, then the customer card; private numbers and leads tuck below. */
 :root{
@@ -50,24 +51,24 @@ button{font:600 15px var(--body);cursor:pointer}
 .muted{color:var(--muted);font-size:13px}
 .results{display:grid;gap:6px}
 .results button{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;padding:9px 11px;font:500 14px var(--body)}
-#map{height:320px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+#map{height:400px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
 .leaflet-tooltip.len{background:var(--surface);color:var(--ink);border:1px solid var(--line);font:600 11px var(--body);padding:1px 4px;box-shadow:none}
 .leaflet-tooltip.len.on{background:var(--bulb);color:#1b1404;border-color:var(--bulb)}
 .leaflet-tooltip.len::before{display:none}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px}
-.seg button{border:0;background:none;color:var(--muted);padding:9px 6px;border-radius:7px;font:600 14px var(--body)}
+.seg button{border:0;background:none;color:var(--muted);padding:12px 6px;border-radius:7px;font:600 14px var(--body)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
 .q{display:grid;gap:6px}
 .qlabel{font:600 14px var(--body)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:8px 16px;font:600 14px var(--body)}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:11px 18px;font:600 14px var(--body)}
 .chip[aria-pressed="true"]{background:var(--bulb);border-color:var(--bulb);color:#1b1404}
 .feet{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .feet b{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums}
 .stepper{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
 .stepper:first-of-type{border-top:0}
 .ctl{display:flex;align-items:center;gap:6px}
-.ctl button{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 20px/1 var(--body)}
+.ctl button{width:46px;height:46px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 20px/1 var(--body)}
 .ctl output{min-width:56px;text-align:center;font:600 16px var(--body);font-variant-numeric:tabular-nums}
 .trees{display:grid;gap:6px}
 .quote{background:var(--surface);border:2px solid var(--pine);border-radius:16px;padding:16px;display:grid;gap:8px}
@@ -107,6 +108,8 @@ main{padding-bottom:84px}
 .seg.three{grid-template-columns:1fr 1fr 1fr}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
+#pv{width:100%;touch-action:none;border-radius:10px;display:block;background:#000}
+.filebtn{display:inline-block;text-align:center}
 </style>
 </head>
 <body>
@@ -138,15 +141,19 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <button id="st-1" aria-pressed="true" type="button">1 story</button>
         <button id="st-2" aria-pressed="false" type="button">2 story</button>
       </div>
-      <div class="chips">
-        <button type="button" class="chip" id="peak-mode" aria-pressed="false">▲ Mark peaks</button>
-        <button type="button" class="chip" id="ridge-btn" aria-pressed="false">Ridge</button>
-        <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Google Maps</a>
-      </div>
-      <p class="muted" id="peak-hint" hidden>Tap each wall that has a peak above it. A ▲ shows on it, and its lights follow the slant. Tap Mark peaks again when you're done.</p>
+      <div class="q"><span class="qlabel">Roof lines</span>
+        <div class="chips" role="group" aria-label="Roof lines">
+          <button type="button" class="chip" id="ln-gutters" aria-pressed="true">Gutters</button>
+          <button type="button" class="chip" id="ln-peaks" aria-pressed="false">Peaks</button>
+          <button type="button" class="chip" id="ln-ridge" aria-pressed="false">Ridge</button>
+        </div></div>
+      <p class="muted">The outline is the roof edge, seen from above. Peaks adds the slanted edges over the gables. Ridge is the top line of the roof, priced on its own line.</p>
+      <div class="stepper" id="lower-row" hidden><span>Lower roof <span class="muted">(porch or garage roof under the 2nd story, feet)</span></span>
+        <div class="ctl"><button type="button" id="lower-minus" aria-label="Less lower roof">−</button><output id="lower-out">0 ft</output><button type="button" id="lower-plus" aria-label="More lower roof">+</button></div></div>
       <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check from the street)</span></span>
         <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
       <div class="feet"><b id="feet-out">0</b><span>ft of roofline</span><span class="muted" id="feet-detail"></span></div>
+      <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Open in Google Maps</a>
       <details class="mini"><summary>Type the feet yourself</summary>
         <input id="manual-feet" type="number" inputmode="numeric" min="0" placeholder="Leave empty to use the map">
       </details>
@@ -170,6 +177,26 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="ctl"><button type="button" data-step="walk" data-d="-5" aria-label="5 ft less walkway">−</button><output data-out="walk">0</output><button type="button" data-step="walk" data-d="5" aria-label="5 ft more walkway">+</button></div></div>
     </section>
 
+    <section class="card" id="preview-card">
+      <h2>Show it lit up <span class="muted" style="text-transform:none;letter-spacing:0">(optional)</span></h2>
+      <label class="btn filebtn" for="photo-in">Take a photo of the house</label>
+      <input id="photo-in" type="file" accept="image/*" capture="environment" hidden>
+      <div id="pv-wrap" hidden style="display:grid;gap:10px">
+        <canvas id="pv"></canvas>
+        <div class="seg" role="group" aria-label="Drawing tool">
+          <button data-tool="line" aria-pressed="true" type="button">Line (roof, ridge)</button>
+          <button data-tool="bush" aria-pressed="false" type="button">Bush (circle it)</button>
+        </div>
+        <div class="row">
+          <button class="btn small" id="pv-undo" type="button">Undo</button>
+          <button class="btn small" id="pv-clear" type="button">Clear</button>
+          <button class="chip" id="pv-night" aria-pressed="true" type="button">Night</button>
+          <button class="btn small primary" id="pv-share" type="button">Share picture</button>
+        </div>
+        <p class="muted">Line: drag your finger along a roof edge or the ridge. Bush: drag a circle around a bush.</p>
+      </div>
+    </section>
+
     <section class="card">
       <h2><span class="num">3</span>Quote</h2>
       <div class="seg three" role="group" aria-label="Price level">
@@ -179,6 +206,7 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
       <div class="quote" id="quote-card" aria-live="polite">
         <div class="line"><span id="q-roof-label">Roofline lights</span><span id="q-roof">$0</span></div>
+        <div class="line" id="q-ridge-row" hidden><span id="q-ridge-label">Ridge line</span><span id="q-ridge">$0</span></div>
         <div class="line" id="q-yard-row" hidden><span id="q-yard-label">Trees and bushes</span><span id="q-yard">$0</span></div>
         <div class="line" id="q-walk-row" hidden><span id="q-walk-label">Walkway</span><span id="q-walk">$0</span></div>
         <div class="total"><span>Total</span><b id="q-total">$0</b></div>
@@ -196,18 +224,22 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="row">
         <button class="btn primary" id="send-quote" type="button">Text this quote</button>
         <button class="btn" id="save-only" type="button">Save</button>
+        <button class="btn" id="pdf-btn" type="button">Quote PDF</button>
       </div>
       <p class="muted" id="send-note">Opens your Messages app with the quote written out. You press send.</p>
     </section>
 
     <details class="card" id="ours">
-      <summary>Our numbers</summary>
+      <summary>Our numbers: cost, time, profit</summary>
       <div id="flag-license" class="flag" hidden></div>
+      <h2>What the lights cost us</h2>
+      <table><tbody id="ours-cost"></tbody></table>
+      <p class="muted" id="ours-time"></p>
+      <h2>Price and profit</h2>
       <table>
         <thead><tr><th></th><th>Low</th><th>Now</th><th>High</th></tr></thead>
         <tbody id="ours-body"></tbody>
       </table>
-      <p class="muted" id="ours-time"></p>
       <h2>Your costs and speed</h2>
       <div class="grid2">
         <label class="f">Your first name, for texts<input id="s-seller" type="text" autocomplete="off"></label>
@@ -252,7 +284,8 @@ const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:
 const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
 // Prices from the 11/16 council (his ask: ground work, bushes and trees cheaper). [low, standard, high]
 const PRICES = {
-  roof:  [6.00, 6.50, 7.50],   // per ft; standard is 7.50 on a 2 story
+  roof:  [6.00, 6.50, 7.50],   // per ft, 1 story
+  roof2: [7.00, 7.50, 8.50],   // per ft, 2 story (his 11/16 note: Standard was equal to High)
   net:   [55, 59, 65],         // per net; a big bush is 2 nets
   trunk: [40, 45, 55],         // per tree, trunk wrap
   canS:  [140, 150, 175],      // full tree up to 6 ft
@@ -261,10 +294,11 @@ const PRICES = {
   walk:  [4.00, 4.50, 5.50]    // per ft, 20 ft minimum
 };
 const STRANDS = {trunk:1.5, canS:6, canM:9, canL:12.5};
-const PEAK = 1.12;             // slanted edges of a gable over a wall, about a 6/12 roof
+const PEAKS = 0.12;            // slanted gable edges run ~12% longer than the walls under them (6/12 roof)
+const RIDGE_EXTRA = 1;         // ridge is priced $1/ft above the gutter rate: it means walking the roof
 const CAP = 1000;              // unlicensed solo limit (CSLB minor work); shown only in Our numbers
 const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
-  peakMode:false, ridgeOn:false, ridge:0, address:"", lat:null, lon:null, road:"" };
+  gutters:true, peaks:false, ridgeOn:false, ridge:0, lower:0, address:"", lat:null, lon:null, road:"", dctx:null };
 
 const $ = id => document.getElementById(id);
 const money = n => "$" + Math.round(n).toLocaleString("en-US");
@@ -459,24 +493,18 @@ function drawBuildings(els, lat, lon, roadName, forceId){
         const cos = (n[0]*front[0] + n[1]*front[1]) / nl / fl;
         face = cos > 0.6 ? "front" : (cos < -0.6 ? "back" : "side");
       }
-      const e = {len, on:false, peak:false, main:isMain, face, label: Math.round(len) + "'"};
-      const vis = L.polyline([a,b], {color: isMain ? "#1f5a3d" : "#8a978f", weight: isMain ? 4 : 2, opacity: isMain ? 1 : .7}).addTo(layer);
-      const hit = L.polyline([a,b], {color:"#000", weight:22, opacity:0}).addTo(layer);
-      if (isMain && len >= 6){
+      const e = {len, on:false, main:isMain, face, wid:w.id, a, b, label: Math.round(len) + "'"};
+      const vis = L.polyline([a,b], {color: isMain ? "#1f5a3d" : "#8a978f", weight: isMain ? 4 : 2, opacity: isMain ? 1 : .7, interactive:false}).addTo(layer);
+      if (isMain && len >= 8){
         vis.bindTooltip(Math.round(len) + "'", {permanent:true, direction:"center", className:"len"});
       }
       e.vis = vis;
-      hit.on("click", () => {
-        if (!isMain){ drawBuildings(st.lastEls, lat, lon, roadName, w.id); toast("Switched to that house"); return; }
-        if (st.peakMode){ e.peak = !e.peak; if (e.peak) e.on = true; }
-        else { e.on = !e.on; if (!e.on) e.peak = false; }
-        paintEdge(e); update();
-      });
       st.edges.push(e);
     }
   }
-  L.circleMarker(pt, {radius:4, color:"#b4441c", weight:2, fillOpacity:1}).addTo(layer);
-  if (bounds.length) map.fitBounds(bounds, {padding:[24,24], maxZoom:20}); else map.setView(pt, 19);
+  L.circleMarker(pt, {radius:4, color:"#b4441c", weight:2, fillOpacity:1, interactive:false}).addTo(layer);
+  st.dctx = {lat, lon, roadName};
+  if (bounds.length) map.fitBounds(bounds, {padding:[10,10], maxZoom:21}); else map.setView(pt, 19);
   applySides();
   $("map-hint").textContent = !ways.length
     ? "No outline on file for this house. Use Type the feet yourself, below the map."
@@ -485,12 +513,26 @@ function drawBuildings(els, lat, lon, roadName, forceId){
                : "Couldn't find the street, so pick walls by tapping them. Numbers are feet.");
 }
 function applySides(){
-  st.edges.forEach(e => { if (e.main){ e.on = st.wrap === "all" || e.face === "front"; if (!e.on) e.peak = false; paintEdge(e); } });
+  st.edges.forEach(e => { if (e.main){ e.on = st.wrap === "all" || e.face === "front"; paintEdge(e); } });
   update();
 }
+// One tap handler for the whole map: the wall nearest the finger wins (found 11/16: a short 7 ft wall
+// next to a long one kept selecting the long one, because their wide tap areas overlapped).
+map.on("click", ev => {
+  if (!st.edges.length) return;
+  const p = map.latLngToLayerPoint(ev.latlng);
+  let best = null, bd = Infinity;
+  for (const e of st.edges){
+    const d = L.LineUtil.pointToSegmentDistance(p, map.latLngToLayerPoint(e.a), map.latLngToLayerPoint(e.b));
+    if (d < bd || (d === bd && e.main)){ bd = d; best = e; }
+  }
+  if (!best || bd > 30) return;
+  if (!best.main){ drawBuildings(st.lastEls, st.dctx.lat, st.dctx.lon, st.dctx.roadName, best.wid); toast("Switched to that house"); return; }
+  best.on = !best.on; paintEdge(best); update();
+});
 function paintEdge(e){
   e.vis.setStyle({color: e.on ? "#e8a317" : (e.main ? "#1f5a3d" : "#8a978f"), weight: e.on ? 7 : (e.main ? 4 : 2), opacity:1});
-  const tt = e.vis.getTooltip(); if (tt){ tt.setContent((e.peak ? "▲ " : "") + e.label); const el = tt.getElement(); if (el) el.classList.toggle("on", e.on); }
+  const tt = e.vis.getTooltip(); if (tt){ const el = tt.getElement(); if (el) el.classList.toggle("on", e.on); }
 }
 
 $("addr-form").addEventListener("submit", async ev => {
@@ -543,10 +585,13 @@ async function pick(r){
 function seg(a, b, on){ $(a).setAttribute("aria-pressed", on); $(b).setAttribute("aria-pressed", !on); }
 $("wrap-front").onclick = () => { st.wrap = "front"; seg("wrap-front","wrap-all",true); applySides(); };
 $("wrap-all").onclick = () => { st.wrap = "all"; seg("wrap-front","wrap-all",false); applySides(); };
-$("st-1").onclick = () => { st.story = 1; seg("st-1","st-2",true); update(); };
-$("st-2").onclick = () => { st.story = 2; seg("st-1","st-2",false); update(); };
-$("peak-mode").onclick = () => { st.peakMode = !st.peakMode; $("peak-mode").setAttribute("aria-pressed", st.peakMode); $("peak-hint").hidden = !st.peakMode; };
-$("ridge-btn").onclick = () => { st.ridgeOn = !st.ridgeOn; $("ridge-btn").setAttribute("aria-pressed", st.ridgeOn); $("ridge-row").hidden = !st.ridgeOn; update(); };
+$("st-1").onclick = () => { st.story = 1; seg("st-1","st-2",true); $("lower-row").hidden = true; update(); };
+$("st-2").onclick = () => { st.story = 2; seg("st-1","st-2",false); $("lower-row").hidden = false; update(); };
+$("ln-gutters").onclick = () => { st.gutters = !st.gutters; $("ln-gutters").setAttribute("aria-pressed", st.gutters); update(); };
+$("ln-peaks").onclick = () => { st.peaks = !st.peaks; $("ln-peaks").setAttribute("aria-pressed", st.peaks); update(); };
+$("ln-ridge").onclick = () => { st.ridgeOn = !st.ridgeOn; $("ln-ridge").setAttribute("aria-pressed", st.ridgeOn); $("ridge-row").hidden = !st.ridgeOn; update(); };
+$("lower-minus").onclick = () => { st.lower = Math.max(0, st.lower - 5); update(); };
+$("lower-plus").onclick = () => { st.lower += 5; update(); };
 $("ridge-minus").onclick = () => { st.ridge = Math.max(0, st.ridge - 5); update(); };
 $("ridge-plus").onclick = () => { st.ridge += 5; update(); };
 $("manual-feet").addEventListener("input", update);
@@ -589,31 +634,38 @@ document.querySelectorAll("[data-level]").forEach(b => b.onclick = () => {
 $("bar-go").onclick = () => $("quote-card").scrollIntoView({behavior:"smooth", block:"center"});
 
 // ---------- math ----------
-function wallFeet(){ return st.edges.filter(e => e.on).reduce((s,e) => s + e.len * (e.peak ? PEAK : 1), 0); }
+function wallFeet(){ return st.edges.filter(e => e.on).reduce((s,e) => s + e.len, 0); }
+// Roofline = gutters (+ peaks) (+ lower roof on a 2 story). The ridge is its own line at a higher rate.
 function roofFeet(){
   const man = parseFloat($("manual-feet").value);
   if (man > 0) return {feet: Math.round(man), src:"typed in"};
-  const w = wallFeet(), gut = w * (1 + S.overhang/100), rg = st.ridgeOn ? st.ridge : 0;
-  const peaks = st.edges.filter(e => e.on && e.peak).length;
+  const w = wallFeet();
+  const gut = st.gutters ? w * (1 + S.overhang/100) : 0, pk = st.peaks ? w * PEAKS : 0, low = st.story === 2 ? st.lower : 0;
   const parts = [];
-  if (gut) parts.push(`gutters ${Math.round(gut)}` + (peaks ? ` (${peaks} peak${peaks>1?"s":""})` : ""));
-  if (rg) parts.push(`ridge ${rg}`);
-  return {feet: Math.round(gut + rg), src: parts.join(" + ")};
+  if (gut) parts.push(`gutters ${Math.round(gut)}`);
+  if (pk) parts.push(`peaks ${Math.round(pk)}`);
+  if (low) parts.push(`lower roof ${low}`);
+  return {feet: Math.round(gut + pk + low), src: parts.join(" + ")};
 }
-function rate(k, lvl){ if (k === "roof" && lvl === 1) return st.story === 2 ? PRICES.roof[2] : PRICES.roof[1]; return PRICES[k][lvl]; }
+function rate(k, lvl){ if (k === "roof") return (st.story === 2 ? PRICES.roof2 : PRICES.roof)[lvl]; return PRICES[k][lvl]; }
 function priceAt(lvl){
   const {feet} = roofFeet(), nets = st.small + 2*st.big, walkFt = st.walk ? Math.max(20, st.walk) : 0;
-  const roof = feet * rate("roof", lvl);
+  const ridgeFt = st.ridgeOn ? st.ridge : 0;
+  const roof = feet * rate("roof", lvl), ridge = ridgeFt * (rate("roof", lvl) + RIDGE_EXTRA);
   const yard = nets*rate("net", lvl) + st.trunk*rate("trunk", lvl) + st.canS*rate("canS", lvl) + st.canM*rate("canM", lvl) + st.canL*rate("canL", lvl);
   const walk = walkFt * rate("walk", lvl);
-  return {feet, nets, walkFt, roof, yard, walk, total: roof + yard + walk};
+  return {feet, ridgeFt, nets, walkFt, roof, ridge, yard, walk, total: roof + ridge + yard + walk};
 }
 function costs(p){
   const strands = st.trunk*STRANDS.trunk + st.canS*STRANDS.canS + st.canM*STRANDS.canM + st.canL*STRANDS.canL;
-  const materials = p.feet*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk;
-  const install = p.feet/S.pace + p.nets*S.netmin/60 + strands*S.strandmin/60 + p.walkFt/S.walkpace;
-  const down = p.feet/S.downpace + p.nets*(S.netmin/2)/60 + strands*(S.strandmin/2)/60 + p.walkFt/(S.walkpace*2);
-  return {materials, install, down, hours: install + down};
+  const materials = (p.feet + p.ridgeFt)*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk;
+  const install = p.feet/S.pace + p.ridgeFt/(S.pace*0.6) + p.nets*S.netmin/60 + strands*S.strandmin/60 + p.walkFt/S.walkpace;
+  const down = p.feet/S.downpace + p.ridgeFt/(S.downpace*0.6) + p.nets*(S.netmin/2)/60 + strands*(S.strandmin/2)/60 + p.walkFt/(S.walkpace*2);
+  const parts = [["Roofline lights", (p.feet + p.ridgeFt)*S.costft, `${p.feet + p.ridgeFt} ft × $${S.costft.toFixed(2)}`],
+    ["Bush nets", p.nets*S.costnet, `${p.nets} × $${S.costnet}`],
+    ["Tree lights", strands*S.coststrand, `${strands} strands × $${S.coststrand}`],
+    ["Walkway lights", p.walkFt*S.costwalk, `${p.walkFt} ft × $${S.costwalk.toFixed(2)}`]].filter(r => r[1] > 0);
+  return {materials, install, down, hours: install + down, parts};
 }
 function yardLabel(){
   const bits = [], bushes = st.small + st.big, trees = st.trunk + st.canS + st.canM + st.canL;
@@ -624,10 +676,11 @@ function yardLabel(){
 
 function update(){
   const q = roofFeet();
-  $("feet-out").textContent = q.feet; $("feet-detail").textContent = q.src; $("ridge-out").textContent = st.ridge + " ft";
+  $("feet-out").textContent = q.feet; $("feet-detail").textContent = q.src; $("ridge-out").textContent = st.ridge + " ft"; $("lower-out").textContent = st.lower + " ft";
   document.querySelectorAll("[data-out]").forEach(o => { const k = o.dataset.out; o.textContent = k === "walk" ? st.walk + " ft" : st[k]; });
   const p = priceAt(st.level);
   $("q-roof-label").textContent = `Roofline lights, ${p.feet} ft` + (st.wrap === "all" ? " (all around)" : " (front)"); $("q-roof").textContent = money(p.roof);
+  $("q-ridge-row").hidden = !p.ridge; $("q-ridge-label").textContent = `Ridge line, ${p.ridgeFt} ft`; $("q-ridge").textContent = money(p.ridge);
   $("q-yard-row").hidden = !p.yard; $("q-yard-label").textContent = "Trees and bushes, " + yardLabel(); $("q-yard").textContent = money(p.yard);
   $("q-walk-row").hidden = !p.walk; $("q-walk-label").textContent = `Walkway, ${p.walkFt} ft`; $("q-walk").textContent = money(p.walk);
   $("q-total").textContent = money(p.total);
@@ -638,10 +691,12 @@ function update(){
   // private numbers
   const lo = priceAt(0), hi = priceAt(2), c = costs(p);
   const ph = v => c.hours ? (v - c.materials)/c.hours : 0;
-  const rows = [["Price", lo.total, p.total, hi.total], ["Materials", c.materials, c.materials, c.materials],
+  const rows = [["Price", lo.total, p.total, hi.total], ["Lights cost", c.materials, c.materials, c.materials],
     ["Profit", lo.total-c.materials, p.total-c.materials, hi.total-c.materials], ["Per hour of your time", ph(lo.total), ph(p.total), ph(hi.total)]];
   $("ours-body").innerHTML = rows.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${money(v)}</td>`).join("")}</tr>`).join("");
-  $("ours-time").textContent = p.total ? `About ${c.install.toFixed(1)} h to install and ${c.down.toFixed(1)} h to take down, working solo.` : "";
+  $("ours-cost").innerHTML = c.parts.map(r => `<tr><td>${r[0]} <span class="muted">${r[2]}</span></td><td>${money(r[1])}</td></tr>`).join("")
+    + (c.parts.length ? `<tr><td><b>All lights</b></td><td><b>${money(c.materials)}</b></td></tr>` : `<tr><td class="muted">Measure a house to see the cost.</td><td></td></tr>`);
+  $("ours-time").textContent = p.total ? `Your time: about ${c.install.toFixed(1)} h to install + ${c.down.toFixed(1)} h to take down = ${c.hours.toFixed(1)} h, working solo.` : "";
   const fl = $("flag-license"); fl.hidden = p.total <= CAP;
   fl.textContent = "Over $1,000. Without a contractor license, California caps a whole job (labor and materials) at $1,000. Don't split it into two contracts.";
 }
@@ -654,6 +709,164 @@ SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener(
 $("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
 $("cost-bulk").onclick = () => { S.costft = 1.00; $("s-costft").value = 1.00; store.set("lq-settings", S); update(); };
 
+// ---------- "Show it lit up": photo + finger-drawn lights ----------
+// Line = C9 bulbs along a roof edge or ridge. Bush = a circle filled with net lights. Night darkens the photo.
+const pv = {img:null, shapes:[], tool:"line", night:true, cur:null, used:false};
+const pvc = $("pv"), pvx = pvc.getContext("2d");
+$("photo-in").addEventListener("change", ev => {
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+    pvc.width = Math.round(img.width * scale); pvc.height = Math.round(img.height * scale);
+    pv.img = img; pv.shapes = []; pv.used = false; $("pv-wrap").hidden = false; pvRender();
+  };
+  img.src = URL.createObjectURL(f);
+});
+document.querySelectorAll("[data-tool]").forEach(b => b.onclick = () => {
+  pv.tool = b.dataset.tool; document.querySelectorAll("[data-tool]").forEach(x => x.setAttribute("aria-pressed", x === b));
+});
+$("pv-undo").onclick = () => { pv.shapes.pop(); pvRender(); };
+$("pv-clear").onclick = () => { pv.shapes = []; pvRender(); };
+$("pv-night").onclick = () => { pv.night = !pv.night; $("pv-night").setAttribute("aria-pressed", pv.night); pvRender(); };
+function pvPoint(ev){ const r = pvc.getBoundingClientRect(); return [(ev.clientX - r.left) * pvc.width / r.width, (ev.clientY - r.top) * pvc.height / r.height]; }
+pvc.addEventListener("pointerdown", ev => { if (!pv.img) return; ev.preventDefault(); pvc.setPointerCapture(ev.pointerId); pv.cur = {type: pv.tool, pts: [pvPoint(ev)]}; });
+pvc.addEventListener("pointermove", ev => {
+  if (!pv.cur) return; const q = pvPoint(ev), last = pv.cur.pts[pv.cur.pts.length - 1];
+  if (Math.hypot(q[0]-last[0], q[1]-last[1]) > 4){ pv.cur.pts.push(q); pvRender(); }
+});
+pvc.addEventListener("pointerup", () => {
+  if (!pv.cur) return; const c = pv.cur; pv.cur = null;
+  if (c.type === "bush"){
+    const xs = c.pts.map(p => p[0]), ys = c.pts.map(p => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const rx = (Math.max(...xs) - Math.min(...xs)) / 2, ry = (Math.max(...ys) - Math.min(...ys)) / 2;
+    if (rx > 6 && ry > 6){
+      const sp = bulbSpacing() * 0.55, n = Math.max(12, Math.round(Math.PI * rx * ry / (sp * sp)));
+      let seed = Math.round(cx * 7 + cy * 13); const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const dots = [];
+      for (let i = 0; i < n; i++){ const t = rnd() * 2 * Math.PI, r = Math.sqrt(rnd()); dots.push([cx + r * rx * Math.cos(t), cy + r * ry * Math.sin(t)]); }
+      pv.shapes.push({type:"bush", cx, cy, rx, ry, dots});
+    }
+  } else if (c.pts.length > 1) pv.shapes.push(c);
+  pv.used = pv.shapes.length > 0; pvRender();
+});
+function bulbSpacing(){ return Math.max(10, pvc.width / 60); }
+function glow(x, y, r, core){
+  const g = pvx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, "rgba(255,244,214,1)"); g.addColorStop(core, "rgba(255,206,120,.85)"); g.addColorStop(1, "rgba(255,170,60,0)");
+  pvx.fillStyle = g; pvx.beginPath(); pvx.arc(x, y, r, 0, 2 * Math.PI); pvx.fill();
+}
+function pvRender(){
+  if (!pv.img) return;
+  pvx.globalCompositeOperation = "source-over";
+  pvx.drawImage(pv.img, 0, 0, pvc.width, pvc.height);
+  if (pv.night){ pvx.fillStyle = "rgba(6,12,38,.66)"; pvx.fillRect(0, 0, pvc.width, pvc.height); }
+  const sp = bulbSpacing(), shapes = pv.cur ? pv.shapes.concat([pv.cur]) : pv.shapes;
+  for (const sh of shapes){
+    if (sh.type === "bush"){
+      if (!sh.dots){ // still drawing: show the outline
+        pvx.strokeStyle = "rgba(255,206,120,.8)"; pvx.lineWidth = 2; pvx.beginPath();
+        sh.pts.forEach((p, i) => i ? pvx.lineTo(p[0], p[1]) : pvx.moveTo(p[0], p[1])); pvx.stroke(); continue;
+      }
+      pvx.globalCompositeOperation = "lighter";
+      const halo = pvx.createRadialGradient(sh.cx, sh.cy, 0, sh.cx, sh.cy, Math.max(sh.rx, sh.ry) * 1.15);
+      halo.addColorStop(0, "rgba(255,190,90,.22)"); halo.addColorStop(1, "rgba(255,190,90,0)");
+      pvx.fillStyle = halo; pvx.beginPath(); pvx.ellipse(sh.cx, sh.cy, sh.rx * 1.15, sh.ry * 1.15, 0, 0, 2 * Math.PI); pvx.fill();
+      for (const d of sh.dots) glow(d[0], d[1], sp * 0.42, .25);
+      pvx.globalCompositeOperation = "source-over";
+    } else {
+      // wire, then bulbs every `sp` pixels along the drawn path
+      pvx.strokeStyle = "rgba(20,40,25,.9)"; pvx.lineWidth = Math.max(1.5, sp / 9); pvx.beginPath();
+      sh.pts.forEach((p, i) => i ? pvx.lineTo(p[0], p[1]) : pvx.moveTo(p[0], p[1])); pvx.stroke();
+      pvx.globalCompositeOperation = "lighter";
+      let carry = 0;
+      for (let i = 1; i < sh.pts.length; i++){
+        const [x0, y0] = sh.pts[i-1], [x1, y1] = sh.pts[i], L = Math.hypot(x1 - x0, y1 - y0);
+        let t = carry;
+        while (t <= L){ const f = L ? t / L : 0; glow(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, sp * 0.75, .18); t += sp; }
+        carry = t - L;
+      }
+      pvx.globalCompositeOperation = "source-over";
+    }
+  }
+}
+async function shareFile(blob, name, title){
+  const file = new File([blob], name, {type: blob.type});
+  try{
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title}); return; }
+  }catch(e){ if (e && e.name === "AbortError") return; }
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+$("pv-share").onclick = () => { if (!pv.img) return; pvc.toBlob(b => b && shareFile(b, "lights-preview.jpg", "Your house with lights"), "image/jpeg", 0.9); };
+
+// ---------- Quote PDF ----------
+$("pdf-btn").onclick = async () => {
+  const p = priceAt(st.level);
+  if (!p.total){ toast("Measure the house first"); return; }
+  if (!window.jspdf){ toast("PDF maker didn't load. Check your signal"); return; }
+  const doc = new window.jspdf.jsPDF({unit:"pt", format:"letter"});
+  const W = 612, M = 48; let y = M;
+  const name = $("c-name").value.trim(), addr = st.address || $("addr").value.trim(), me = (S.seller || "").trim();
+  const date = new Date().toLocaleDateString("en-US", {month:"long", day:"numeric", year:"numeric"});
+  doc.setFillColor(31, 90, 61); doc.rect(0, 0, W, 8, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(23, 35, 29); doc.text("Christmas Lights Quote", M, y + 14); y += 34;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(93, 107, 99);
+  [name && "For: " + name, addr && "Home: " + addr, "Date: " + date, me && "Prepared by: " + me].filter(Boolean).forEach(t => { doc.text(t, M, y); y += 15; });
+  y += 8;
+  // picture: the lit-up photo if he made one
+  if (pv.used){
+    const img = pvc.toDataURL("image/jpeg", 0.85), maxW = W - 2*M, maxH = 250;
+    const k = Math.min(maxW / pvc.width, maxH / pvc.height), iw = pvc.width * k, ih = pvc.height * k;
+    doc.addImage(img, "JPEG", M + (maxW - iw) / 2, y, iw, ih); y += ih + 16;
+  }
+  // drawing of the house from above, lit walls in gold
+  const main = st.edges.filter(e => e.main);
+  if (main.length && !$("manual-feet").value){
+    const lat0 = st.dctx ? st.dctx.lat : st.lat;
+    const xy = main.map(e => [toXY(e.a, lat0), toXY(e.b, lat0), e.on]);
+    const xs = xy.flatMap(s => [s[0][0], s[1][0]]), ys = xy.flatMap(s => [s[0][1], s[1][1]]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+    const boxW = 200, boxH = 150, k = Math.min(boxW / (maxx - minx || 1), boxH / (maxy - miny || 1));
+    const ox = M + (boxW - (maxx - minx) * k) / 2, oy = y + (boxH - (maxy - miny) * k) / 2;
+    const P = q => [ox + (q[0] - minx) * k, oy + (maxy - q[1]) * k];
+    for (const [a, b, on] of xy){
+      const A = P(a), B = P(b);
+      if (on){ doc.setDrawColor(232, 163, 23); doc.setLineWidth(4); } else { doc.setDrawColor(150, 160, 155); doc.setLineWidth(1.2); }
+      doc.line(A[0], A[1], B[0], B[1]);
+    }
+    doc.setFontSize(9); doc.setTextColor(93, 107, 99);
+    doc.text("Your home from above. Gold = where the lights go.", M, y + boxH + 14);
+    // line items beside the drawing
+    var tx = M + boxW + 30, ty = y + 6;
+    y += boxH + 30;
+  } else { var tx = M, ty = y; }
+  const rows = [[`Roofline lights (${p.feet} ft${st.wrap === "all" ? ", all around" : ", front"})`, p.roof]];
+  if (p.ridge) rows.push([`Ridge line (${p.ridgeFt} ft)`, p.ridge]);
+  if (p.yard) rows.push([`Trees and bushes (${yardLabel()})`, p.yard]);
+  if (p.walk) rows.push([`Walkway (${p.walkFt} ft)`, p.walk]);
+  const colR = W - M;
+  doc.setFontSize(12); doc.setTextColor(23, 35, 29); doc.setFont("helvetica", "normal");
+  for (const [label, amt] of rows){ doc.text(doc.splitTextToSize(label, colR - tx - 80), tx, ty + 12); doc.text(money(amt), colR, ty + 12, {align:"right"}); ty += 24; }
+  doc.setDrawColor(217, 224, 219); doc.setLineWidth(1); doc.line(tx, ty + 2, colR, ty + 2); ty += 22;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Total", tx, ty); doc.text(money(p.total), colR, ty, {align:"right"}); ty += 22;
+  const h1 = Math.ceil(p.total / 2);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(93, 107, 99);
+  doc.text(`Half after setup: ${money(h1)}`, tx, ty); ty += 15; doc.text(`Half at takedown: ${money(p.total - h1)}`, tx, ty); ty += 15;
+  y = Math.max(y, ty) + 20;
+  doc.setTextColor(23, 35, 29); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.text("What's included", M, y); y += 16;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  const inc = ["Lights put up on the lines listed above.", "You keep the lights after the season.", "We come back and take them down. Takedown is included in the price."];
+  inc.forEach(t => { doc.text("•  " + t, M, y); y += 15; });
+  y += 26; doc.setDrawColor(150, 160, 155);
+  doc.line(M, y, M + 220, y); doc.line(M + 260, y, M + 400, y);
+  doc.setFontSize(9); doc.setTextColor(93, 107, 99); doc.text("Accepted by", M, y + 12); doc.text("Date", M + 260, y + 12);
+  const fname = "Christmas lights quote" + (addr ? " - " + addr.split(",")[0] : "") + ".pdf";
+  await shareFile(doc.output("blob"), fname, "Christmas lights quote");
+};
+
 // ---------- leads ----------
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 function smsLink(phone, body){ return "sms:" + phone.replace(/[^\d+]/g, "") + (isIOS ? "&" : "?") + "body=" + encodeURIComponent(body); }
@@ -663,6 +876,7 @@ function quoteText(lead){
   const parts = [me ? `${hi}it's ${me} with the Christmas lights. Here's your quote for ${lead.address || "your home"}:`
                     : `${hi}here's your Christmas lights quote for ${lead.address || "your home"}:`];
   parts.push(`Roofline lights (${p.feet} ft): ${money(p.roof)}`);
+  if (p.ridge) parts.push(`Ridge line (${p.ridgeFt} ft): ${money(p.ridge)}`);
   if (p.yard) parts.push(`Trees and bushes (${p.yardLabel}): ${money(p.yard)}`);
   if (p.walk) parts.push(`Walkway (${p.walkFt} ft): ${money(p.walk)}`);
   parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
@@ -689,9 +903,9 @@ function saveLead(sent){
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
-    quote: {feet:p.feet, roof:p.roof, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
+    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
-      walls: st.edges.filter(e => e.main && e.on).map(e => ({len: Math.round(e.len), peak: e.peak})), ridge: st.ridgeOn ? st.ridge : 0} };
+      walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
   const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
   setTimeout(() => { $("c-name").value = ""; $("c-phone").value = ""; $("c-consent").checked = false; }, 1500);
   return lead;
