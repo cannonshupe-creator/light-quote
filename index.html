@@ -353,6 +353,8 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       <h2>Team sync</h2>
       <p class="muted" id="sync-status"></p>
       <div class="row"><button class="btn small primary" id="sync-now" type="button">Sync now</button><button class="btn small" id="invite" type="button" hidden>Invite a teammate</button></div>
+      <details class="mini"><summary>Join with an invite link</summary>
+        <div class="row"><input id="join-in" type="text" placeholder="Paste the invite link" autocomplete="off"><button class="btn small" id="join-go" type="button">Join</button></div></details>
       <p class="fine">Doors and quotes save on this phone first, then go to the team's private sheet when there's signal.</p>
     </section>
   </div>
@@ -1223,14 +1225,21 @@ const okSyncUrl = u => /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$
 // Invite link: the page address + #join=<sheet address and team code>. The part after # never leaves the phone.
 // (also on hashchange: tapping the link while the page is already open only changes the part after #)
 let joinedNow = false;
-function joinFromLink(){
-  const m = location.hash.match(/join=([A-Za-z0-9_-]+)/); if (!m) return;
+function joinFromLink(text){
+  joinedNow = false;
+  const fromUrl = text === undefined, m = (fromUrl ? location.hash : String(text)).match(/join=([A-Za-z0-9_-]+)/); if (!m) return false;
   try{
     const j = JSON.parse(atob(m[1].replace(/-/g, "+").replace(/_/g, "/")));
     if (j.u && j.c && okSyncUrl(j.u)){ store.set(TEAM_KEY, {url:j.u, code:j.c}); joinedNow = true; setTimeout(() => toast("Joined the team. Leads and doors now sync."), 600); }
   }catch(e){}
-  history.replaceState(null, "", location.pathname + location.search);
+  if (fromUrl) history.replaceState(null, "", location.pathname + location.search);
+  return joinedNow;
 }
+// A Home Screen app keeps its own storage, separate from Safari, so the link can also be pasted in here.
+$("join-go").onclick = () => {
+  if (!joinFromLink($("join-in").value)){ toast("That isn't an invite link"); return; }
+  $("join-in").value = ""; queueLeadChanges(leads()); syncStatus(); syncNow();
+};
 joinFromLink();
 window.addEventListener("hashchange", () => { joinFromLink(); if (joinedNow && team()){ queueLeadChanges(leads()); syncStatus(); syncNow(); } });
 function inviteLink(){
