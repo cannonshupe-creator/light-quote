@@ -345,6 +345,7 @@ const RIDGE_EXTRA = 1;         // ridge is priced $1/ft above the gutter rate: i
 // His call 11/17: 70% after setup, 30% at takedown (was 50/50). Setup is done before the 70% is due.
 const SPLIT = 0.70;
 function firstPay(t){ return Math.ceil(t * SPLIT); }
+const STEP_MAX = 20;           // ft: a side wall this short between two front walls is a step in the front gutter
 const CAP = 1000;              // unlicensed solo limit (CSLB minor work); shown only in Our numbers
 const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
   gutters:true, peaks:false, ridgeOn:false, ridge:0, lower:0, address:"", lat:null, lon:null, road:"", dctx:null };
@@ -559,6 +560,9 @@ function drawBuildings(els, lat, lon, roadName, forceId){
       st.edges.push(e);
     }
   }
+  // His rule 11/17 ("just places where there's a gutter line"): a short step wall between two front
+  // walls carries the front gutter around the step, so it counts as front. Tap off any that has none.
+  markSteps(st.edges.filter(e => e.main));
   L.circleMarker(pt, {radius:4, color:"#b4441c", weight:2, fillOpacity:1, interactive:false}).addTo(layer);
   st.dctx = {lat, lon, roadName};
   if (bounds.length) map.fitBounds(bounds, {padding:[10,10], maxZoom:21}); else map.setView(pt, 19);
@@ -566,8 +570,17 @@ function drawBuildings(els, lat, lon, roadName, forceId){
   $("map-hint").textContent = !ways.length
     ? "No outline on file for this house. Use Type the feet yourself, below the map."
     : (st.exact === false && !forceId ? "Couldn't pin the exact house number. If the green outline is the wrong house, tap the right one. " : "")
-      + (front ? `Gold walls face ${st.road || "the street"}. Tap any wall to add or remove it. Numbers are feet.`
+      + (front ? `Gold walls are the front gutter line facing ${st.road || "the street"}, steps included. Tap off any wall with no gutter, or tap one on. Numbers are feet.`
                : "Couldn't find the street, so pick walls by tapping them. Numbers are feet.");
+}
+function markSteps(ring){
+  const n = ring.length; if (n < 3) return;
+  for (let i = 0; i < n; i++){
+    if (ring[i].face !== "front") continue;
+    const run = []; let j = (i + 1) % n;
+    while (j !== i && ring[j].face === "side" && ring[j].len <= STEP_MAX){ run.push(ring[j]); j = (j + 1) % n; }
+    if (run.length && j !== i && ring[j].face === "front") run.forEach(e => { e.face = "front"; e.step = true; });
+  }
 }
 function applySides(){
   st.edges.forEach(e => { if (e.main){ e.on = st.wrap === "all" || e.face === "front"; paintEdge(e); } });
