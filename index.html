@@ -37,7 +37,7 @@ h1{font:700 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
 h2{font:700 15px/1.2 var(--display);margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
-.tabs button{border:0;background:none;color:var(--muted);font:600 14px var(--body);padding:6px 12px;border-radius:7px}
+.tabs button{border:0;background:none;color:var(--muted);font:600 14px var(--body);padding:8px 10px;border-radius:7px}
 .tabs button[aria-selected="true"]{background:var(--pine);color:var(--pine-ink)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;min-width:0}
 input,select{font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%;min-width:0}
@@ -119,6 +119,7 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="tabs" role="tablist">
       <button id="tab-quote" role="tab" aria-selected="true">Quote</button>
       <button id="tab-leads" role="tab" aria-selected="false">Leads <span id="due-count"></span></button>
+      <button id="tab-stock" role="tab" aria-selected="false">Stock <span id="short-count"></span></button>
     </div>
   </div>
 
@@ -258,6 +259,43 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="row"><button class="btn small" id="cost-hq" type="button">HQ pack $1.99/ft</button><button class="btn small" id="cost-bulk" type="button">Bulk $1.00/ft</button></div>
       <p class="fine">Speeds are starting guesses. Put in your real times after your first few houses. Trunk wrap = about 1.5 mini strands; full trees = 6 / 9 / 12.5 strands (small / medium / large).</p>
     </details>
+  </div>
+
+  <div id="view-stock" style="display:none;gap:14px">
+    <section class="card">
+      <h2>Lights on hand</h2>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th></th><th>Have</th><th>Booked</th><th>Short</th></tr></thead>
+        <tbody id="stock-body"></tbody>
+      </table></div>
+      <p class="muted" id="stock-note">Booked = what the jobs you marked Won will use. Short = what to buy.</p>
+      <div id="stock-order" class="flag" hidden></div>
+    </section>
+    <section class="card">
+      <h2>Add a purchase</h2>
+      <div class="chips" id="presets"></div>
+      <div id="pending" class="lead" hidden>
+        <div class="who"><span id="pend-label"></span></div>
+        <div class="stepper"><span>How many</span>
+          <div class="ctl"><button type="button" id="pend-minus" aria-label="One less">−</button><output id="pend-qty">1</output><button type="button" id="pend-plus" aria-label="One more">+</button></div></div>
+        <label class="f">Total you paid ($)<input id="pend-paid" type="number" inputmode="decimal" step="0.01"></label>
+        <div class="row"><button class="btn primary" id="pend-add" type="button">Add to stock</button><button class="btn" id="pend-cancel" type="button">Cancel</button></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>What your lights really cost</h2>
+      <p id="stock-cost" class="muted">Add what you buy and this shows your real cost per foot.</p>
+      <div class="row"><button class="btn small" id="use-cost" type="button" hidden>Use this in quotes</button></div>
+    </section>
+    <section class="card">
+      <h2>Booked jobs</h2>
+      <div id="stock-jobs" class="results"></div>
+      <p class="fine">Mark a quote Won in Leads to book it, and Installed once the lights are up (that takes them out of stock).</p>
+    </section>
+    <section class="card">
+      <h2>Purchases</h2>
+      <div id="stock-buys" class="results"></div>
+    </section>
   </div>
 
   <div id="view-leads" style="display:none;gap:14px">
@@ -893,7 +931,7 @@ const FOLLOW = [
   {days:"dec1", text: l => `Hi${l.name ? " " + l.name.split(" ")[0] : ""}, last few install slots before Christmas this week. Your quote is still ${money(l.quote.total)}. Want one?`}
 ];
 function nextDue(lead){
-  if (["won","lost","stop"].includes(lead.status) || lead.touches >= FOLLOW.length || !lead.consent) return null;
+  if (["won","installed","lost","stop"].includes(lead.status) || lead.touches >= FOLLOW.length || !lead.consent) return null;
   const f = FOLLOW[lead.touches], base = new Date(lead.created);
   if (f.days === "dec1"){ const d = new Date(base.getFullYear(), 11, 1); const min = new Date(+base + 6*864e5); return d > min ? d : min; }
   const d = new Date(base); d.setDate(d.getDate() + f.days); return d;
@@ -923,8 +961,8 @@ function renderLeads(){
   $("due-count").textContent = due.length ? `(${due.length})` : "";
   const card = (l, showDue) => {
     const d = nextDue(l), el = document.createElement("div"); el.className = "lead";
-    const status = {quoted:"Quoted", won:"Won", lost:"Lost", stop:"Do not text"}[l.status];
-    el.innerHTML = `<div class="who"><span></span><span class="pill ${l.status==="won"?"won":(showDue?"due":"")}"></span></div>
+    const status = {quoted:"Quoted", won:"Won", installed:"Installed", lost:"Lost", stop:"Do not text"}[l.status];
+    el.innerHTML = `<div class="who"><span></span><span class="pill ${["won","installed"].includes(l.status)?"won":(showDue?"due":"")}"></span></div>
       <div class="muted"></div>
       <div class="row"></div>`;
     el.querySelector(".who span").textContent = (l.name || "No name") + " · " + money(l.quote.total);
@@ -938,7 +976,7 @@ function renderLeads(){
       row.appendChild(a);
     }
     const sel = document.createElement("select"); sel.setAttribute("aria-label","Status"); sel.style.width = "auto";
-    for (const [v,t] of [["quoted","Quoted"],["won","Won"],["lost","Lost"],["stop","Do not text"]]){ const o = new Option(t, v, false, l.status===v); sel.add(o); }
+    for (const [v,t] of [["quoted","Quoted"],["won","Won"],["installed","Installed"],["lost","Lost"],["stop","Do not text"]]){ const o = new Option(t, v, false, l.status===v); sel.add(o); }
     sel.onchange = () => mutate(l.id, x => x.status = sel.value);
     row.appendChild(sel);
     return el;
@@ -950,22 +988,139 @@ function renderLeads(){
   if (!all.length) allBox.innerHTML = '<p class="muted">Saved quotes show up here.</p>';
   all.forEach(l => allBox.appendChild(card(l, false)));
 }
-function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); store.set("lq-leads", all); renderLeads(); } }
+function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); store.set("lq-leads", all); renderLeads(); renderStock(); } }
 $("export").onclick = async () => {
   const txt = JSON.stringify(leads(), null, 1);
   try{ await navigator.clipboard.writeText(txt); toast("Copied. Paste it in a text to yourself"); }
   catch(e){ toast("Couldn't copy on this phone"); }
 };
 
+// ---------- stock (inventory), built 2026-11-16 on his yes ----------
+// The customer keeps the lights, so stock only goes down when a job is marked Installed.
+// Have = bought - installed. Booked = what Won jobs will use. Short = Booked - Have.
+const ITEMS = [
+  ["wire", "C9 wire", "ft"], ["bulbs", "C9 bulbs", ""], ["clips", "Clips", ""], ["nets", "Bush nets", ""],
+  ["strands", "Mini strands", ""], ["stakes", "Walkway stakes", ""], ["timers", "Timers", ""], ["cords", "Extension cords", ""]
+];
+// What a purchase adds (per 1 of it) and a typical price; he edits the price he really paid.
+const PRESETS = [
+  {key:"hq",      label:"HQ Pro Pack (250 ft)", adds:{wire:250, bulbs:200, clips:200, timers:1, cords:1}, price:497},
+  {key:"spool",   label:"C9 spool, 1,000 ft",   adds:{wire:1000}, price:300},
+  {key:"bulbs",   label:"C9 bulbs, case of 500", adds:{bulbs:500}, price:319},
+  {key:"clips",   label:"Clips, 500",           adds:{clips:500}, price:64},
+  {key:"nets",    label:"Bush net",             adds:{nets:1}, price:36},
+  {key:"strands", label:"Mini strand",          adds:{strands:1}, price:12.5},
+  {key:"stakes",  label:"Stakes, 100",          adds:{stakes:100}, price:30},
+  {key:"timer",   label:"Timer",                adds:{timers:1}, price:22},   // matches "Timer per house" in Our numbers
+  {key:"cord",    label:"Extension cord",       adds:{cords:1}, price:20}
+];
+const BULBS_PER_FT = 0.8;   // 15" spacing
+function jobNeeds(q){
+  q = q || {};
+  const roofFt = (q.feet || 0) + (q.ridgeFt || 0), walkFt = q.walkFt || 0;
+  const bulbs = Math.ceil((roofFt + walkFt) * BULBS_PER_FT);
+  return {wire: roofFt + walkFt, bulbs, clips: Math.ceil(roofFt * BULBS_PER_FT), nets: q.nets || 0,
+    strands: Math.ceil((q.trunk||0)*STRANDS.trunk + (q.canS||0)*STRANDS.canS + (q.canM||0)*STRANDS.canM + (q.canL||0)*STRANDS.canL),
+    stakes: Math.ceil(walkFt * BULBS_PER_FT), timers: 1, cords: 1};
+}
+const stockData = () => store.get("lq-stock", {buys: []});
+function stockTotals(){
+  const bought = {}, used = {}, booked = {};
+  ITEMS.forEach(([k]) => { bought[k] = 0; used[k] = 0; booked[k] = 0; });
+  for (const b of stockData().buys) for (const k in b.adds) bought[k] = (bought[k] || 0) + b.adds[k];
+  for (const l of leads()){
+    if (l.status !== "won" && l.status !== "installed") continue;
+    const n = jobNeeds(l.quote), into = l.status === "installed" ? used : booked;
+    for (const k in n) into[k] += n[k];
+  }
+  const have = {}, short = {};
+  ITEMS.forEach(([k]) => { have[k] = bought[k] - used[k]; short[k] = Math.max(0, booked[k] - Math.max(0, have[k])); });
+  return {bought, used, booked, have, short};
+}
+// real cost per foot of finished C9 run: everything paid for wire, bulbs and clips / feet of wire bought
+function realCostPerFt(){
+  let paid = 0, ft = 0;
+  for (const b of stockData().buys){
+    if (b.adds.wire || b.adds.bulbs || b.adds.clips){
+      // a pack's timer/cord share is small; count the whole pack toward the lights
+      paid += b.paid; ft += b.adds.wire || 0;
+    }
+  }
+  return ft ? paid / ft : null;
+}
+let pending = null;
+function renderStock(){
+  const t = stockTotals();
+  $("stock-body").innerHTML = ITEMS.map(([k, label, unit]) => {
+    const u = unit ? " " + unit : "";
+    return `<tr><td>${label}</td><td>${Math.max(0, t.have[k]).toLocaleString()}${u}</td><td>${t.booked[k].toLocaleString()}${u}</td><td${t.short[k] ? ' style="color:var(--warn);font-weight:700"' : ""}>${t.short[k] ? t.short[k].toLocaleString() + u : "–"}</td></tr>`;
+  }).join("");
+  const shortList = ITEMS.filter(([k]) => t.short[k]).map(([k, label, unit]) => `${t.short[k].toLocaleString()}${unit ? " " + unit : ""} ${label.toLowerCase()}`);
+  $("stock-order").hidden = !shortList.length;
+  $("stock-order").textContent = shortList.length ? "To buy for booked jobs: " + shortList.join(", ") + "." : "";
+  $("short-count").textContent = shortList.length ? "(!)" : "";
+  // presets
+  const pre = $("presets");
+  if (!pre.childElementCount) PRESETS.forEach(pr => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = pr.label;
+    b.onclick = () => { pending = {...pr, qty:1}; $("pending").hidden = false; renderPending(); };
+    pre.appendChild(b);
+  });
+  // real cost
+  const c = realCostPerFt();
+  $("stock-cost").textContent = c ? `What you've bought works out to $${c.toFixed(2)} per foot of C9 lights (wire, bulbs and clips). Quotes use $${S.costft.toFixed(2)}.` : "Add what you buy and this shows your real cost per foot.";
+  $("use-cost").hidden = !c || Math.abs(c - S.costft) < 0.005;
+  $("use-cost").onclick = () => { S.costft = +c.toFixed(2); $("s-costft").value = S.costft; store.set("lq-settings", S); update(); renderStock(); toast("Quotes now use $" + S.costft.toFixed(2) + "/ft"); };
+  // booked jobs
+  const jobs = leads().filter(l => l.status === "won");
+  const jb = $("stock-jobs"); jb.innerHTML = "";
+  if (!jobs.length) jb.innerHTML = '<p class="muted">No booked jobs yet.</p>';
+  for (const l of jobs){
+    const n = jobNeeds(l.quote), el = document.createElement("div"); el.className = "lead";
+    const lightCost = n.wire*S.costft + n.nets*S.costnet + n.strands*S.coststrand;
+    el.innerHTML = `<div class="who"><span></span><span class="pill"></span></div><div class="muted"></div>`;
+    el.querySelector(".who span").textContent = (l.name || l.address || "No name") + " · " + money(l.quote.total);
+    el.querySelector(".pill").textContent = "lights ~" + money(lightCost);
+    el.querySelector(".muted").textContent = [n.wire && `${n.wire} ft C9`, n.nets && `${n.nets} nets`, n.strands && `${n.strands} mini strands`, n.stakes && `${n.stakes} stakes`].filter(Boolean).join(", ");
+    jb.appendChild(el);
+  }
+  // purchases
+  const buys = stockData().buys, bb = $("stock-buys"); bb.innerHTML = "";
+  if (!buys.length) bb.innerHTML = '<p class="muted">Nothing added yet.</p>';
+  buys.slice().reverse().forEach(b => {
+    const el = document.createElement("div"); el.className = "lead";
+    el.innerHTML = `<div class="who"><span></span><span></span></div><div class="row"><button type="button" class="btn small">Remove</button></div>`;
+    const sp = el.querySelectorAll(".who span"); sp[0].textContent = `${b.qty} × ${b.label}`; sp[1].textContent = money(b.paid);
+    el.querySelector("button").onclick = () => { const d = stockData(); d.buys = d.buys.filter(x => x.id !== b.id); store.set("lq-stock", d); renderStock(); };
+    bb.appendChild(el);
+  });
+}
+function renderPending(){
+  $("pend-label").textContent = pending.label; $("pend-qty").textContent = pending.qty;
+  $("pend-paid").value = +(pending.price * pending.qty).toFixed(2);
+}
+$("pend-minus").onclick = () => { pending.qty = Math.max(1, pending.qty - 1); renderPending(); };
+$("pend-plus").onclick = () => { pending.qty += 1; renderPending(); };
+$("pend-cancel").onclick = () => { pending = null; $("pending").hidden = true; };
+$("pend-add").onclick = () => {
+  if (!pending) return;
+  const paid = parseFloat($("pend-paid").value) || 0, adds = {};
+  for (const k in pending.adds) adds[k] = pending.adds[k] * pending.qty;
+  const d = stockData(); d.buys.push({id: Date.now().toString(36), date: Date.now(), label: pending.label, qty: pending.qty, adds, paid});
+  store.set("lq-stock", d); toast("Added " + pending.qty + " × " + pending.label);
+  pending = null; $("pending").hidden = true; renderStock();
+};
+
 // ---------- tabs ----------
 function showTab(t){
-  $("view-quote").style.display = t==="quote" ? "grid" : "none"; $("view-leads").style.display = t==="leads" ? "grid" : "none";
-  $("tab-quote").setAttribute("aria-selected", t==="quote"); $("tab-leads").setAttribute("aria-selected", t==="leads");
+  for (const v of ["quote","leads","stock"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; $("tab-" + v).setAttribute("aria-selected", t === v); }
+  if (t === "stock") renderStock();
+  $("bar").hidden = t !== "quote";
   if (t === "quote") setTimeout(() => map.invalidateSize(), 50);
 }
-$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads");
+$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads"); $("tab-stock").onclick = () => showTab("stock");
 
-renderLeads(); update();
+renderLeads(); renderStock(); update();
 </script>
 </body>
 </html>
