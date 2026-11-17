@@ -96,6 +96,17 @@ label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .pill.won{background:var(--pine);color:var(--pine-ink);border-color:var(--pine)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px}
 @media (prefers-reduced-motion:no-preference){.btn,.seg button{transition:background .15s}}
+.num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:99px;background:var(--pine);color:var(--pine-ink);font:700 13px var(--body);margin-right:6px;vertical-align:1px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar b{font:700 24px var(--display);font-variant-numeric:tabular-nums}
+.bar.near{background:var(--bulb-soft)} .bar.over{background:var(--warn-soft)} .bar.over b{color:var(--warn)}
+.bar .note{font-size:12px;color:var(--muted)}
+main{padding-bottom:84px}
+.seg.three{grid-template-columns:1fr 1fr 1fr}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -110,82 +121,73 @@ label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 
   <div id="view-quote" style="display:grid;gap:14px">
     <section class="card">
-      <h2>House</h2>
+      <h2><span class="num">1</span>House</h2>
       <form id="addr-form" class="row" autocomplete="off">
         <input id="addr" type="text" placeholder="Street address, city" enterkeyhint="search">
         <button class="btn primary" type="submit">Find</button>
+        <button class="btn" id="here" type="button">Here</button>
       </form>
       <div id="addr-results" class="results"></div>
       <div id="map"></div>
-      <p class="muted" id="map-hint">Find the house. The street side lights up gold on its own; tap any wall to add or remove it.</p>
-      <div class="q"><span class="qlabel">Which sides?</span>
-        <div class="chips" role="group" aria-label="Which sides">
-          <button type="button" class="chip" data-side="front" aria-pressed="true">Front</button>
-          <button type="button" class="chip" data-side="side" aria-pressed="false">Sides</button>
-          <button type="button" class="chip" data-side="back" aria-pressed="false">Back</button>
-        </div></div>
-      <div class="q"><span class="qlabel">Which lines?</span>
-        <div class="chips" role="group" aria-label="Which lines">
-          <button type="button" class="chip" data-line="gutters" aria-pressed="true">Gutters</button>
-          <button type="button" class="chip" data-line="peaks" aria-pressed="false">Peaks</button>
-          <button type="button" class="chip" data-line="ridge" aria-pressed="false">Ridge</button>
-        </div></div>
-      <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check it from the street)</span></span>
-        <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
-      <div class="row">
-        <button class="btn small" id="sel-none" type="button">Clear walls</button>
-        <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Open in Google Maps</a>
+      <p class="muted" id="map-hint">Type the address, or tap Here to use where you're standing.</p>
+      <div class="seg" role="group" aria-label="Which sides">
+        <button id="wrap-front" aria-pressed="true" type="button">Front only</button>
+        <button id="wrap-all" aria-pressed="false" type="button">All around</button>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>Roofline</h2>
       <div class="seg" role="group" aria-label="House height">
         <button id="st-1" aria-pressed="true" type="button">1 story</button>
-        <button id="st-2" aria-pressed="false" type="button">2 story or steep</button>
+        <button id="st-2" aria-pressed="false" type="button">2 story</button>
       </div>
-      <div class="feet"><b id="feet-out">0</b><span>ft of lights</span></div>
-      <p class="muted" id="feet-detail"></p>
-      <label class="f">Measured it yourself? Type the feet to use instead
+      <div class="chips">
+        <button type="button" class="chip" id="peak-mode" aria-pressed="false">▲ Mark peaks</button>
+        <button type="button" class="chip" id="ridge-btn" aria-pressed="false">Ridge</button>
+        <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Google Maps</a>
+      </div>
+      <p class="muted" id="peak-hint" hidden>Tap each wall that has a peak above it. A ▲ shows on it, and its lights follow the slant. Tap Mark peaks again when you're done.</p>
+      <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check from the street)</span></span>
+        <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
+      <div class="feet"><b id="feet-out">0</b><span>ft of roofline</span><span class="muted" id="feet-detail"></span></div>
+      <details class="mini"><summary>Type the feet yourself</summary>
         <input id="manual-feet" type="number" inputmode="numeric" min="0" placeholder="Leave empty to use the map">
-      </label>
+      </details>
     </section>
 
     <section class="card">
-      <h2>Bushes and trees</h2>
-      <div class="stepper"><span>Small bushes <span class="muted">(1 net each)</span></span>
-        <div class="ctl"><button type="button" data-step="small" data-d="-1" aria-label="One less small bush">−</button><output id="small-out">0</output><button type="button" data-step="small" data-d="1" aria-label="One more small bush">+</button></div></div>
-      <div class="stepper"><span>Big bushes <span class="muted">(2 nets each)</span></span>
-        <div class="ctl"><button type="button" data-step="big" data-d="-1" aria-label="One less big bush">−</button><output id="big-out">0</output><button type="button" data-step="big" data-d="1" aria-label="One more big bush">+</button></div></div>
-      <div class="trees" id="trees"></div>
-      <button class="btn small" id="add-tree" type="button">+ Add a small tree</button>
+      <h2><span class="num">2</span>Extras</h2>
+      <div class="stepper"><span>Small bushes <span class="muted">(1 net)</span></span>
+        <div class="ctl"><button type="button" data-step="small" data-d="-1" aria-label="One less small bushes">−</button><output data-out="small">0</output><button type="button" data-step="small" data-d="1" aria-label="One more small bushes">+</button></div></div>
+      <div class="stepper"><span>Big bushes <span class="muted">(2 nets)</span></span>
+        <div class="ctl"><button type="button" data-step="big" data-d="-1" aria-label="One less big bushes">−</button><output data-out="big">0</output><button type="button" data-step="big" data-d="1" aria-label="One more big bushes">+</button></div></div>
+      <div class="stepper"><span>Tree trunks <span class="muted">(wrap the trunk)</span></span>
+        <div class="ctl"><button type="button" data-step="trunk" data-d="-1" aria-label="One less tree trunks">−</button><output data-out="trunk">0</output><button type="button" data-step="trunk" data-d="1" aria-label="One more tree trunks">+</button></div></div>
+      <div class="stepper"><span>Full trees, small <span class="muted">(up to 6 ft)</span></span>
+        <div class="ctl"><button type="button" data-step="canS" data-d="-1" aria-label="One less full trees, small">−</button><output data-out="canS">0</output><button type="button" data-step="canS" data-d="1" aria-label="One more full trees, small">+</button></div></div>
+      <div class="stepper"><span>Full trees, medium <span class="muted">(7–10 ft)</span></span>
+        <div class="ctl"><button type="button" data-step="canM" data-d="-1" aria-label="One less full trees, medium">−</button><output data-out="canM">0</output><button type="button" data-step="canM" data-d="1" aria-label="One more full trees, medium">+</button></div></div>
+      <div class="stepper"><span>Full trees, large <span class="muted">(11–14 ft)</span></span>
+        <div class="ctl"><button type="button" data-step="canL" data-d="-1" aria-label="One less full trees, large">−</button><output data-out="canL">0</output><button type="button" data-step="canL" data-d="1" aria-label="One more full trees, large">+</button></div></div>
+      <div class="stepper"><span>Walkway <span class="muted">(feet)</span></span>
+        <div class="ctl"><button type="button" data-step="walk" data-d="-5" aria-label="5 ft less walkway">−</button><output data-out="walk">0</output><button type="button" data-step="walk" data-d="5" aria-label="5 ft more walkway">+</button></div></div>
     </section>
 
     <section class="card">
-      <h2>Price</h2>
-      <div class="stepper"><span>Roofline, per foot</span>
-        <div class="ctl"><button type="button" data-rate="roof" data-d="-1" aria-label="Lower roofline rate">−</button><output id="roof-rate">$6.50</output><button type="button" data-rate="roof" data-d="1" aria-label="Raise roofline rate">+</button></div></div>
-      <div class="stepper"><span>Bush, per net</span>
-        <div class="ctl"><button type="button" data-rate="net" data-d="-1" aria-label="Lower net price">−</button><output id="net-rate">$75</output><button type="button" data-rate="net" data-d="1" aria-label="Raise net price">+</button></div></div>
-      <div class="stepper"><span>Tree, per foot of height</span>
-        <div class="ctl"><button type="button" data-rate="tree" data-d="-1" aria-label="Lower tree price">−</button><output id="tree-rate">$30</output><button type="button" data-rate="tree" data-d="1" aria-label="Raise tree price">+</button></div></div>
-      <p class="muted">Your floor is $6.00 / $65 / $25. The customer only sees the total below.</p>
-    </section>
-
-    <section class="quote" id="quote-card" aria-live="polite">
-      <div class="line"><span id="q-roof-label">Roofline lights</span><span id="q-roof">$0</span></div>
-      <div class="line" id="q-bush-row" hidden><span id="q-bush-label">Bushes</span><span id="q-bush">$0</span></div>
-      <div class="line" id="q-tree-row" hidden><span id="q-tree-label">Trees</span><span id="q-tree">$0</span></div>
-      <div class="total"><span>Total</span><b id="q-total">$0</b></div>
-      <div class="halves">
-        <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
-        <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
+      <h2><span class="num">3</span>Quote</h2>
+      <div class="seg three" role="group" aria-label="Price level">
+        <button data-level="0" aria-pressed="false" type="button">Low</button>
+        <button data-level="1" aria-pressed="true" type="button">Standard</button>
+        <button data-level="2" aria-pressed="false" type="button">High</button>
       </div>
-      <p class="fine">The lights are yours to keep. Install and takedown are included.</p>
-    </section>
-
-    <section class="card">
-      <h2>Send or save</h2>
+      <div class="quote" id="quote-card" aria-live="polite">
+        <div class="line"><span id="q-roof-label">Roofline lights</span><span id="q-roof">$0</span></div>
+        <div class="line" id="q-yard-row" hidden><span id="q-yard-label">Trees and bushes</span><span id="q-yard">$0</span></div>
+        <div class="line" id="q-walk-row" hidden><span id="q-walk-label">Walkway</span><span id="q-walk">$0</span></div>
+        <div class="total"><span>Total</span><b id="q-total">$0</b></div>
+        <div class="halves">
+          <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
+          <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
+        </div>
+        <p class="fine">You keep the lights. Takedown is included.</p>
+      </div>
       <div class="grid2">
         <label class="f">Name<input id="c-name" type="text" autocomplete="off"></label>
         <label class="f">Phone<input id="c-phone" type="tel" inputmode="tel" autocomplete="off"></label>
@@ -193,7 +195,7 @@ label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
       <label class="check"><input id="c-consent" type="checkbox"> They said it's OK to text them about this quote</label>
       <div class="row">
         <button class="btn primary" id="send-quote" type="button">Text this quote</button>
-        <button class="btn" id="save-only" type="button">Save without texting</button>
+        <button class="btn" id="save-only" type="button">Save</button>
       </div>
       <p class="muted" id="send-note">Opens your Messages app with the quote written out. You press send.</p>
     </section>
@@ -202,25 +204,26 @@ label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
       <summary>Our numbers</summary>
       <div id="flag-license" class="flag" hidden></div>
       <table>
-        <thead><tr><th></th><th>Floor</th><th>Now</th><th>Top</th></tr></thead>
+        <thead><tr><th></th><th>Low</th><th>Now</th><th>High</th></tr></thead>
         <tbody id="ours-body"></tbody>
       </table>
       <p class="muted" id="ours-time"></p>
       <h2>Your costs and speed</h2>
       <div class="grid2">
         <label class="f">Your first name, for texts<input id="s-seller" type="text" autocomplete="off"></label>
-        <label class="f">Lights cost per ft<input id="s-costft" type="number" step="0.01" inputmode="decimal"></label>
+        <label class="f">Roof lights cost per ft<input id="s-costft" type="number" step="0.01" inputmode="decimal"></label>
         <label class="f">Net cost each<input id="s-costnet" type="number" step="1" inputmode="decimal"></label>
-        <label class="f">Tree strand cost each<input id="s-coststrand" type="number" step="0.5" inputmode="decimal"></label>
-        <label class="f">Install, ft per hour<input id="s-pace" type="number" step="5" inputmode="numeric"></label>
-        <label class="f">Takedown, ft per hour<input id="s-downpace" type="number" step="5" inputmode="numeric"></label>
+        <label class="f">Mini strand cost each<input id="s-coststrand" type="number" step="0.5" inputmode="decimal"></label>
+        <label class="f">Walkway cost per ft<input id="s-costwalk" type="number" step="0.05" inputmode="decimal"></label>
+        <label class="f">Roof install, ft per hour<input id="s-pace" type="number" step="5" inputmode="numeric"></label>
+        <label class="f">Roof takedown, ft per hour<input id="s-downpace" type="number" step="5" inputmode="numeric"></label>
+        <label class="f">Walkway install, ft per hour<input id="s-walkpace" type="number" step="5" inputmode="numeric"></label>
         <label class="f">Minutes per net<input id="s-netmin" type="number" step="1" inputmode="numeric"></label>
         <label class="f">Minutes per tree strand<input id="s-strandmin" type="number" step="1" inputmode="numeric"></label>
         <label class="f">Roof overhang extra, %<input id="s-overhang" type="number" step="1" inputmode="numeric"></label>
-        <label class="f">Peaks extra, % of walls<input id="s-peaks" type="number" step="1" inputmode="numeric"></label>
       </div>
       <div class="row"><button class="btn small" id="cost-hq" type="button">HQ pack $1.99/ft</button><button class="btn small" id="cost-bulk" type="button">Bulk $1.00/ft</button></div>
-      <p class="fine">Speeds are a starting guess from installer guides. Put in your real times after your first few houses. A tree takes about one 25 ft mini strand per foot of height.</p>
+      <p class="fine">Speeds are starting guesses. Put in your real times after your first few houses. Trunk wrap = about 1.5 mini strands; full trees = 6 / 9 / 12.5 strands (small / medium / large).</p>
     </details>
   </div>
 
@@ -237,7 +240,7 @@ label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
     </section>
   </div>
 </main>
-
+<div class="bar" id="bar"><div><span class="note" id="bar-note">Total</span><br><b id="bar-total">$0</b></div><button class="btn primary" id="bar-go" type="button">See quote</button></div>
 <script>
 "use strict";
 // ---------- storage (phone only for now) ----------
@@ -245,16 +248,27 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, pace:40, downpace:90, netmin:10, strandmin:10, overhang:5, peaks:12};
+const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:1.65, pace:40, downpace:90, walkpace:100, netmin:10, strandmin:10, overhang:5};
 const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
-const RATES = { roof:{min:6, max:7.5, step:0.25}, net:{min:65, max:85, step:5}, tree:{min:25, max:35, step:1} };
-const st = { story:1, edges:[], small:0, big:0, trees:[], rate:{roof:6.5, net:75, tree:30}, address:"", lat:null, lon:null,
-  sides:{front:true, side:false, back:false}, lines:{gutters:true, peaks:false, ridge:false}, ridge:0, road:"" };
+// Prices from the 11/16 council (his ask: ground work, bushes and trees cheaper). [low, standard, high]
+const PRICES = {
+  roof:  [6.00, 6.50, 7.50],   // per ft; standard is 7.50 on a 2 story
+  net:   [55, 59, 65],         // per net; a big bush is 2 nets
+  trunk: [40, 45, 55],         // per tree, trunk wrap
+  canS:  [140, 150, 175],      // full tree up to 6 ft
+  canM:  [225, 250, 275],      // full tree 7-10 ft
+  canL:  [325, 350, 375],      // full tree 11-14 ft
+  walk:  [4.00, 4.50, 5.50]    // per ft, 20 ft minimum
+};
+const STRANDS = {trunk:1.5, canS:6, canM:9, canL:12.5};
+const PEAK = 1.12;             // slanted edges of a gable over a wall, about a 6/12 roof
+const CAP = 1000, NEAR = 950;  // unlicensed solo limit (CSLB minor work), warn early
+const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
+  peakMode:false, ridgeOn:false, ridge:0, address:"", lat:null, lon:null, road:"" };
 
 const $ = id => document.getElementById(id);
 const money = n => "$" + Math.round(n).toLocaleString("en-US");
-const money2 = n => "$" + n.toFixed(2);
-function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
+function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.style.bottom="calc(84px + env(safe-area-inset-bottom,0px))"; t.textContent = msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
 
 // ---------- map ----------
 const map = L.map("map", {zoomControl:true, attributionControl:true}).setView([33.85,-117.75], 8);
@@ -445,7 +459,7 @@ function drawBuildings(els, lat, lon, roadName, forceId){
         const cos = (n[0]*front[0] + n[1]*front[1]) / nl / fl;
         face = cos > 0.6 ? "front" : (cos < -0.6 ? "back" : "side");
       }
-      const e = {len, on:false, main:isMain, face};
+      const e = {len, on:false, peak:false, main:isMain, face, label: Math.round(len) + "'"};
       const vis = L.polyline([a,b], {color: isMain ? "#1f5a3d" : "#8a978f", weight: isMain ? 4 : 2, opacity: isMain ? 1 : .7}).addTo(layer);
       const hit = L.polyline([a,b], {color:"#000", weight:22, opacity:0}).addTo(layer);
       if (isMain && len >= 6){
@@ -454,7 +468,9 @@ function drawBuildings(els, lat, lon, roadName, forceId){
       e.vis = vis;
       hit.on("click", () => {
         if (!isMain){ drawBuildings(st.lastEls, lat, lon, roadName, w.id); toast("Switched to that house"); return; }
-        e.on = !e.on; paintEdge(e); update();
+        if (st.peakMode){ e.peak = !e.peak; if (e.peak) e.on = true; }
+        else { e.on = !e.on; if (!e.on) e.peak = false; }
+        paintEdge(e); update();
       });
       st.edges.push(e);
     }
@@ -463,18 +479,18 @@ function drawBuildings(els, lat, lon, roadName, forceId){
   if (bounds.length) map.fitBounds(bounds, {padding:[24,24], maxZoom:20}); else map.setView(pt, 19);
   applySides();
   $("map-hint").textContent = !ways.length
-    ? "No outline on file for this house. Type the feet below instead."
+    ? "No outline on file for this house. Use Type the feet yourself, below the map."
     : (st.exact === false && !forceId ? "Couldn't pin the exact house number. If the green outline is the wrong house, tap the right one. " : "")
       + (front ? `Gold walls face ${st.road || "the street"}. Tap any wall to add or remove it. Numbers are feet.`
                : "Couldn't find the street, so pick walls by tapping them. Numbers are feet.");
 }
 function applySides(){
-  st.edges.forEach(e => { if (e.main){ e.on = !!st.sides[e.face]; paintEdge(e); } });
+  st.edges.forEach(e => { if (e.main){ e.on = st.wrap === "all" || e.face === "front"; if (!e.on) e.peak = false; paintEdge(e); } });
   update();
 }
 function paintEdge(e){
   e.vis.setStyle({color: e.on ? "#e8a317" : (e.main ? "#1f5a3d" : "#8a978f"), weight: e.on ? 7 : (e.main ? 4 : 2), opacity:1});
-  const tt = e.vis.getTooltip(); if (tt){ const el = tt.getElement(); if (el) el.classList.toggle("on", e.on); }
+  const tt = e.vis.getTooltip(); if (tt){ tt.setContent((e.peak ? "▲ " : "") + e.label); const el = tt.getElement(); if (el) el.classList.toggle("on", e.on); }
 }
 
 $("addr-form").addEventListener("submit", async ev => {
@@ -483,7 +499,7 @@ $("addr-form").addEventListener("submit", async ev => {
   $("addr-results").innerHTML = ""; $("map-hint").textContent = "Looking up the address…";
   try{
     const res = await geocode(q);
-    if (!res.length){ $("map-hint").textContent = "Couldn't find that address. Add the city, or type the feet below."; return; }
+    if (!res.length){ $("map-hint").textContent = "Couldn't find that address. Add the city, or type the feet yourself."; return; }
     if (res.length === 1 || res[0].importance - (res[1]?.importance||0) > .15) return pick(res[0]);
     for (const r of res){
       const b = document.createElement("button"); b.type="button"; b.textContent = r.display_name;
@@ -491,7 +507,7 @@ $("addr-form").addEventListener("submit", async ev => {
       $("addr-results").appendChild(b);
     }
     $("map-hint").textContent = "Pick the right address.";
-  }catch(e){ $("map-hint").textContent = e.message + ". Check your signal and try again, or type the feet below."; }
+  }catch(e){ $("map-hint").textContent = e.message + ". Check your signal and try again, or type the feet yourself."; }
 });
 async function pick(r){
   st.lat = +r.lat; st.lon = +r.lon; st.address = r.display_name.split(",").slice(0,3).join(",").trim();
@@ -520,112 +536,124 @@ async function pick(r){
     st.lastEls = els; st.lastRoad = r.address && r.address.road;
     drawBuildings(els, st.lat, st.lon, st.lastRoad);
   }
-  catch(e){ $("map-hint").textContent = e.message + ". Try again in a few seconds, or type the feet below."; }
+  catch(e){ $("map-hint").textContent = e.message + ". Try again in a few seconds, or type the feet yourself."; }
   update();
 }
-document.querySelectorAll("[data-side]").forEach(b => b.onclick = () => {
-  const k = b.dataset.side; st.sides[k] = !st.sides[k]; b.setAttribute("aria-pressed", st.sides[k]); applySides();
-});
-document.querySelectorAll("[data-line]").forEach(b => b.onclick = () => {
-  const k = b.dataset.line; st.lines[k] = !st.lines[k]; b.setAttribute("aria-pressed", st.lines[k]);
-  $("ridge-row").hidden = !st.lines.ridge; update();
-});
+// ---------- step 1 controls ----------
+function seg(a, b, on){ $(a).setAttribute("aria-pressed", on); $(b).setAttribute("aria-pressed", !on); }
+$("wrap-front").onclick = () => { st.wrap = "front"; seg("wrap-front","wrap-all",true); applySides(); };
+$("wrap-all").onclick = () => { st.wrap = "all"; seg("wrap-front","wrap-all",false); applySides(); };
+$("st-1").onclick = () => { st.story = 1; seg("st-1","st-2",true); update(); };
+$("st-2").onclick = () => { st.story = 2; seg("st-1","st-2",false); update(); };
+$("peak-mode").onclick = () => { st.peakMode = !st.peakMode; $("peak-mode").setAttribute("aria-pressed", st.peakMode); $("peak-hint").hidden = !st.peakMode; };
+$("ridge-btn").onclick = () => { st.ridgeOn = !st.ridgeOn; $("ridge-btn").setAttribute("aria-pressed", st.ridgeOn); $("ridge-row").hidden = !st.ridgeOn; update(); };
 $("ridge-minus").onclick = () => { st.ridge = Math.max(0, st.ridge - 5); update(); };
 $("ridge-plus").onclick = () => { st.ridge += 5; update(); };
-$("sel-none").onclick = () => { st.edges.forEach(e => { e.on = false; paintEdge(e); }); update(); };
-
-// ---------- inputs ----------
-function setStory(n){
-  st.story = n; $("st-1").setAttribute("aria-pressed", n===1); $("st-2").setAttribute("aria-pressed", n===2);
-  st.rate.roof = n===1 ? 6.5 : 7.5; update();
-}
-$("st-1").onclick = () => setStory(1); $("st-2").onclick = () => setStory(2);
 $("manual-feet").addEventListener("input", update);
-document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { const k = b.dataset.step; st[k] = Math.max(0, st[k] + +b.dataset.d); update(); });
-document.querySelectorAll("[data-rate]").forEach(b => b.onclick = () => {
-  const k = b.dataset.rate, R = RATES[k];
-  st.rate[k] = Math.min(R.max, Math.max(R.min, +(st.rate[k] + R.step * +b.dataset.d).toFixed(2))); update();
-});
-$("add-tree").onclick = () => { st.trees.push(6); renderTrees(); update(); };
-function renderTrees(){
-  const box = $("trees"); box.innerHTML = "";
-  st.trees.forEach((h, i) => {
-    const row = document.createElement("div"); row.className = "stepper";
-    row.innerHTML = `<span>Tree ${i+1}, height <button type="button" class="btn small" aria-label="Remove tree ${i+1}">Remove</button></span>
-      <div class="ctl"><button type="button" aria-label="Shorter">−</button><output>${h} ft</output><button type="button" aria-label="Taller">+</button></div>`;
-    const [rm, minus, plus] = row.querySelectorAll("button");
-    rm.onclick = () => { st.trees.splice(i,1); renderTrees(); update(); };
-    minus.onclick = () => { st.trees[i] = Math.max(2, h-1); renderTrees(); update(); };
-    plus.onclick = () => { st.trees[i] = Math.min(20, h+1); renderTrees(); update(); };
-    box.appendChild(row);
-  });
+// "Here": the nearest county address point to where he's standing
+$("here").onclick = () => {
+  if (!navigator.geolocation){ toast("Location isn't available here"); return; }
+  $("map-hint").textContent = "Finding where you are…";
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const {latitude:lat, longitude:lon} = pos.coords;
+    try{
+      const near = await nearestAddress(lat, lon);
+      let city = "";
+      try{ const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${lat}&lon=${lon}`); const j = await r.json(); city = (j.address && (j.address.city || j.address.town || j.address.village)) || ""; }catch(e){}
+      if (!near){ $("map-hint").textContent = "Couldn't find an address here. Type it instead."; return; }
+      $("addr").value = [near.number + " " + near.street, city].filter(Boolean).join(", ");
+      $("addr-form").requestSubmit();
+    }catch(e){ $("map-hint").textContent = "Couldn't find an address here. Type it instead."; }
+  }, () => { $("map-hint").textContent = "Location is off. Type the address instead."; }, {enableHighAccuracy:true, timeout:10000});
+};
+async function nearestAddress(lat, lon){
+  if (!overtureLib) await overtureBuildings.loadLib();
+  if (!addrArchive) addrArchive = new overtureLib.pm.PMTiles(OVERTURE_ADDR);
+  const z = 14, n = 2**z, x = Math.floor((lon+180)/360*n), y = Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n);
+  const t = await addrArchive.getZxy(z, x, y); if (!t || !t.data) return null;
+  const vt = new overtureLib.VectorTile(new overtureLib.Pbf(new Uint8Array(t.data)));
+  let best = null;
+  for (const name in vt.layers){ const lyr = vt.layers[name];
+    for (let i=0; i<lyr.length; i++){ const f = lyr.feature(i), p = f.properties; if (!p.number || !p.street) continue;
+      const c = f.toGeoJSON(x, y, z).geometry.coordinates, d = ftBetween([lat, lon], [c[1], c[0]]);
+      if (d < 250 && (!best || d < best.d)) best = {d, number:p.number, street: String(p.street).toLowerCase().replace(/\b\w/g, m => m.toUpperCase())};
+    } }
+  return best;
 }
+
+// ---------- step 2 + 3 controls ----------
+document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { const k = b.dataset.step; st[k] = Math.max(0, st[k] + +b.dataset.d); update(); });
+document.querySelectorAll("[data-level]").forEach(b => b.onclick = () => {
+  st.level = +b.dataset.level; document.querySelectorAll("[data-level]").forEach(x => x.setAttribute("aria-pressed", x === b)); update();
+});
+$("bar-go").onclick = () => $("quote-card").scrollIntoView({behavior:"smooth", block:"center"});
 
 // ---------- math ----------
-function scopeText(){
-  const sd = ["front","side","back"].filter(k => st.sides[k]).map(k => k === "side" ? "sides" : k);
-  const ln = ["gutters","peaks","ridge"].filter(k => st.lines[k]);
-  if ($("manual-feet").value) return "";
-  return [sd.join(" + "), ln.join(" + ")].filter(Boolean).join(", ");
-}
-function measured(){ return st.edges.filter(e => e.on).reduce((s,e) => s + e.len, 0); }
-function quoteFeet(){
+function wallFeet(){ return st.edges.filter(e => e.on).reduce((s,e) => s + e.len * (e.peak ? PEAK : 1), 0); }
+function roofFeet(){
   const man = parseFloat($("manual-feet").value);
-  if (man > 0) return {feet: Math.round(man), src:"typed"};
-  const m = measured(), parts = [];
-  const gut = st.lines.gutters ? m * (1 + S.overhang/100) : 0;
-  const pk = st.lines.peaks ? m * S.peaks/100 : 0;
-  const rg = st.lines.ridge ? st.ridge : 0;
-  if (gut) parts.push(`gutters ${Math.round(gut)}`);
-  if (pk) parts.push(`peaks ${Math.round(pk)}`);
-  if (rg) parts.push(`ridge ${Math.round(rg)}`);
-  return {feet: Math.round(gut + pk + rg), src: parts.length ? parts.join(" + ") + " ft" : ""};
+  if (man > 0) return {feet: Math.round(man), src:"typed in"};
+  const w = wallFeet(), gut = w * (1 + S.overhang/100), rg = st.ridgeOn ? st.ridge : 0;
+  const peaks = st.edges.filter(e => e.on && e.peak).length;
+  const parts = [];
+  if (gut) parts.push(`gutters ${Math.round(gut)}` + (peaks ? ` (${peaks} peak${peaks>1?"s":""})` : ""));
+  if (rg) parts.push(`ridge ${rg}`);
+  return {feet: Math.round(gut + rg), src: parts.join(" + ")};
 }
-function priceAt(r){
-  const {feet} = quoteFeet(), nets = st.small + 2*st.big, treeFt = st.trees.reduce((a,b)=>a+b,0);
-  const roof = feet * r.roof, bush = nets * r.net, tree = treeFt * r.tree;
-  return {feet, nets, treeFt, roof, bush, tree, total: roof + bush + tree};
+function rate(k, lvl){ if (k === "roof" && lvl === 1) return st.story === 2 ? PRICES.roof[2] : PRICES.roof[1]; return PRICES[k][lvl]; }
+function priceAt(lvl){
+  const {feet} = roofFeet(), nets = st.small + 2*st.big, walkFt = st.walk ? Math.max(20, st.walk) : 0;
+  const roof = feet * rate("roof", lvl);
+  const yard = nets*rate("net", lvl) + st.trunk*rate("trunk", lvl) + st.canS*rate("canS", lvl) + st.canM*rate("canM", lvl) + st.canL*rate("canL", lvl);
+  const walk = walkFt * rate("walk", lvl);
+  return {feet, nets, walkFt, roof, yard, walk, total: roof + yard + walk};
 }
 function costs(p){
-  const materials = p.feet*S.costft + p.nets*S.costnet + p.treeFt*S.coststrand;
-  const install = p.feet/S.pace + p.nets*S.netmin/60 + p.treeFt*S.strandmin/60;
-  const down = p.feet/S.downpace + p.nets*(S.netmin/2)/60 + p.treeFt*(S.strandmin/2)/60;
+  const strands = st.trunk*STRANDS.trunk + st.canS*STRANDS.canS + st.canM*STRANDS.canM + st.canL*STRANDS.canL;
+  const materials = p.feet*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk;
+  const install = p.feet/S.pace + p.nets*S.netmin/60 + strands*S.strandmin/60 + p.walkFt/S.walkpace;
+  const down = p.feet/S.downpace + p.nets*(S.netmin/2)/60 + strands*(S.strandmin/2)/60 + p.walkFt/(S.walkpace*2);
   return {materials, install, down, hours: install + down};
+}
+function yardLabel(){
+  const bits = [], bushes = st.small + st.big, trees = st.trunk + st.canS + st.canM + st.canL;
+  if (bushes) bits.push(`${bushes} bush${bushes > 1 ? "es" : ""}`);
+  if (trees) bits.push(`${trees} tree${trees > 1 ? "s" : ""}`);
+  return bits.join(", ");
 }
 
 function update(){
-  const q = quoteFeet();
+  const q = roofFeet();
   $("feet-out").textContent = q.feet; $("feet-detail").textContent = q.src; $("ridge-out").textContent = st.ridge + " ft";
-  $("small-out").textContent = st.small; $("big-out").textContent = st.big;
-  $("roof-rate").textContent = money2(st.rate.roof); $("net-rate").textContent = money(st.rate.net); $("tree-rate").textContent = money(st.rate.tree);
-  const p = priceAt(st.rate);
-  const sc = scopeText(); $("q-roof-label").textContent = `Roofline lights, ${p.feet} ft` + (sc ? ` (${sc})` : ""); $("q-roof").textContent = money(p.roof);
-  $("q-bush-row").hidden = !p.nets; $("q-bush-label").textContent = `Bushes, ${st.small + st.big}`; $("q-bush").textContent = money(p.bush);
-  $("q-tree-row").hidden = !st.trees.length; $("q-tree-label").textContent = `Trees, ${st.trees.length}`; $("q-tree").textContent = money(p.tree);
+  document.querySelectorAll("[data-out]").forEach(o => { const k = o.dataset.out; o.textContent = k === "walk" ? st.walk + " ft" : st[k]; });
+  const p = priceAt(st.level);
+  $("q-roof-label").textContent = `Roofline lights, ${p.feet} ft` + (st.wrap === "all" ? " (all around)" : " (front)"); $("q-roof").textContent = money(p.roof);
+  $("q-yard-row").hidden = !p.yard; $("q-yard-label").textContent = "Trees and bushes, " + yardLabel(); $("q-yard").textContent = money(p.yard);
+  $("q-walk-row").hidden = !p.walk; $("q-walk-label").textContent = `Walkway, ${p.walkFt} ft`; $("q-walk").textContent = money(p.walk);
   $("q-total").textContent = money(p.total);
   const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
+  // running total bar and the $1,000 limit
+  const bar = $("bar"); bar.classList.toggle("near", p.total >= NEAR && p.total <= CAP); bar.classList.toggle("over", p.total > CAP);
+  $("bar-total").textContent = money(p.total);
+  $("bar-note").textContent = p.total > CAP ? "Over $1,000. Trim it to send" : (p.total >= NEAR ? "Close to $1,000" : "Total");
+  $("send-quote").disabled = $("save-only").disabled = p.total > CAP;
+  $("send-note").textContent = p.total > CAP ? "Over $1,000. Drop something or switch to Low to send it." : "Opens your Messages app with the quote written out. You press send.";
   // private numbers
-  const lo = priceAt({roof:RATES.roof.min, net:RATES.net.min, tree:RATES.tree.min});
-  const hi = priceAt({roof:RATES.roof.max, net:RATES.net.max, tree:RATES.tree.max});
-  const c = costs(p);
-  const rows = [
-    ["Price", lo.total, p.total, hi.total],
-    ["Materials", c.materials, c.materials, c.materials],
-    ["Profit", lo.total-c.materials, p.total-c.materials, hi.total-c.materials],
-    ["Per hour of your time", c.hours ? (lo.total-c.materials)/c.hours : 0, c.hours ? (p.total-c.materials)/c.hours : 0, c.hours ? (hi.total-c.materials)/c.hours : 0]
-  ];
+  const lo = priceAt(0), hi = priceAt(2), c = costs(p);
+  const ph = v => c.hours ? (v - c.materials)/c.hours : 0;
+  const rows = [["Price", lo.total, p.total, hi.total], ["Materials", c.materials, c.materials, c.materials],
+    ["Profit", lo.total-c.materials, p.total-c.materials, hi.total-c.materials], ["Per hour of your time", ph(lo.total), ph(p.total), ph(hi.total)]];
   $("ours-body").innerHTML = rows.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${money(v)}</td>`).join("")}</tr>`).join("");
   $("ours-time").textContent = p.total ? `About ${c.install.toFixed(1)} h to install and ${c.down.toFixed(1)} h to take down, working solo.` : "";
-  const fl = $("flag-license");
-  fl.hidden = p.total < 1000;
-  fl.textContent = "This quote is $1,000 or more. Without a contractor license, California caps a job at under $1,000 (labor and materials). Trim the scope or check with CSLB before you sign it.";
+  const fl = $("flag-license"); fl.hidden = p.total <= CAP;
+  fl.textContent = "Over $1,000. Without a contractor license, California caps a whole job (labor and materials) at $1,000. Don't split it into two contracts.";
 }
 
 // settings
 const SKEYS = Object.keys(DEFAULTS);
 SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener("input", () => {
   if (k === "seller"){ S.seller = el.value; store.set("lq-settings", S); return; }
-  const v = parseFloat(el.value); if (v > 0 || ((k === "overhang" || k === "peaks") && v >= 0)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
+  const v = parseFloat(el.value); if (v > 0 || (k === "overhang" && v >= 0)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
 $("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
 $("cost-bulk").onclick = () => { S.costft = 1.00; $("s-costft").value = 1.00; store.set("lq-settings", S); update(); };
 
@@ -634,15 +662,14 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platfor
 function smsLink(phone, body){ return "sms:" + phone.replace(/[^\d+]/g, "") + (isIOS ? "&" : "?") + "body=" + encodeURIComponent(body); }
 function quoteText(lead){
   const p = lead.quote, first = (lead.name || "").split(" ")[0];
-  const me = (S.seller || "").trim();
-  const hi = `Hi${first ? " " + first : ""}, `;
+  const me = (S.seller || "").trim(), hi = `Hi${first ? " " + first : ""}, `;
   const parts = [me ? `${hi}it's ${me} with the Christmas lights. Here's your quote for ${lead.address || "your home"}:`
                     : `${hi}here's your Christmas lights quote for ${lead.address || "your home"}:`];
-  parts.push(`Roofline lights (${p.feet} ft${p.scope ? ", " + p.scope : ""}): ${money(p.roof)}`);
-  if (p.nets) parts.push(`Bushes (${p.bushes}): ${money(p.bush)}`);
-  if (p.trees) parts.push(`Trees (${p.trees}): ${money(p.tree)}`);
+  parts.push(`Roofline lights (${p.feet} ft): ${money(p.roof)}`);
+  if (p.yard) parts.push(`Trees and bushes (${p.yardLabel}): ${money(p.yard)}`);
+  if (p.walk) parts.push(`Walkway (${p.walkFt} ft): ${money(p.walk)}`);
   parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
-  parts.push("The lights are yours to keep, and takedown is included. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
+  parts.push("You keep the lights, and takedown is included. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
   return parts.join("\n");
 }
 const FOLLOW = [
@@ -659,13 +686,16 @@ function nextDue(lead){
 const leads = () => store.get("lq-leads", []);
 function saveLead(sent){
   const name = $("c-name").value.trim(), phone = $("c-phone").value.trim();
-  const p = priceAt(st.rate);
+  const p = priceAt(st.level);
   if (!p.total){ toast("Measure the house first"); return null; }
+  if (p.total > CAP){ toast("Over $1,000. Trim it first"); return null; }
   if (sent && !phone){ toast("Add their phone number"); return null; }
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
-    quote: {feet:p.feet, roof:p.roof, nets:p.nets, bushes: st.small + st.big, bush:p.bush, trees: st.trees.length, treeFt:p.treeFt, tree:p.tree, total:p.total, half1:Math.ceil(p.total/2), rates: {...st.rate}, story: st.story, scope: scopeText()} };
+    quote: {feet:p.feet, roof:p.roof, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
+      level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
+      walls: st.edges.filter(e => e.main && e.on).map(e => ({len: Math.round(e.len), peak: e.peak})), ridge: st.ridgeOn ? st.ridge : 0} };
   const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
   setTimeout(() => { $("c-name").value = ""; $("c-phone").value = ""; $("c-consent").checked = false; }, 1500);
   return lead;
@@ -721,7 +751,7 @@ function showTab(t){
 }
 $("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads");
 
-renderTrees(); renderLeads(); update();
+renderLeads(); update();
 </script>
 </body>
 </html>
