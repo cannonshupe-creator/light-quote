@@ -127,6 +127,36 @@ details.comeback.due>summary{color:var(--warn)}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:4px;vertical-align:-1px}
 .muted.warn{color:var(--warn);font-weight:600}
+/* Doors, map first (11/17) */
+#view-doors{position:relative}
+.dbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.dchip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:9px 13px;font:600 14px var(--body)}
+.dchip.due{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.sdot{width:30px;height:30px;border-radius:99px;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);background:#8a978f;margin-left:auto;padding:0}
+.sdot.ok{background:#2e9e5b} .sdot.wait{background:#e8a317} .sdot.bad{background:#c0392b}
+.dmapwrap{position:relative}
+#dmap{height:60vh;border-radius:12px;border:1px solid var(--line);background:var(--bg);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.dme,.dkey{position:absolute;z-index:500;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 15px var(--body);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.dme{right:12px;bottom:18px;width:58px;height:58px;border-radius:99px}
+.dme.off{background:var(--ink);color:var(--bg)}
+.dkey{left:12px;bottom:18px;border-radius:99px;padding:10px 14px;font-size:14px}
+.dlegend{position:absolute;z-index:500;left:12px;bottom:70px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:6px;font-size:14px}
+.dlegend i{display:inline-block;width:12px;height:12px;border-radius:99px;margin-right:6px;vertical-align:-1px;border:2px solid #fff}
+.dhint{position:absolute;z-index:500;left:50%;top:10px;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:13px;color:var(--muted);pointer-events:none;white-space:nowrap}
+.hold-ring{position:absolute;z-index:600;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:99px;border:4px solid #e8a317;pointer-events:none;animation:holdgrow .45s linear forwards}
+@keyframes holdgrow{from{transform:scale(.3);opacity:.4}to{transform:scale(1);opacity:1}}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;max-height:82vh;overflow-y:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);
+  padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
+.sheet>*{max-width:560px;width:100%;margin:0 auto}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet .x{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;width:44px;height:44px;font:700 22px/1 var(--body);flex:none}
+.outs2{display:grid;gap:8px}
+.outs2 button{display:flex;align-items:center;gap:12px;min-height:60px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font:700 19px var(--body);padding:0 16px;text-align:left}
+.outs2 button i{width:22px;height:22px;border-radius:99px;background:var(--c);flex:none;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.outs2 button:active{border-color:var(--c)}
+.outs2 #sale-btn{border-color:#2e9e5b;background:#2e9e5b;color:#fff}
+.updpill{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:1200;border:0;background:var(--pine);color:var(--pine-ink);border-radius:99px;padding:10px 16px;font:700 14px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+
 </style>
 </head>
 <body>
@@ -336,20 +366,34 @@ details.comeback.due>summary{color:var(--warn)}
     </section>
   </div>
 
-  <div id="view-doors" style="display:none;gap:14px">
-    <details class="card comeback" id="cb-card"><summary id="cb-sum">Come back</summary><div id="cb-list" class="results"></div></details>
-    <section class="card">
-      <div class="row" style="justify-content:space-between"><h2>This door</h2><span class="muted" id="d-knocker"></span></div>
-      <label class="f" id="who-row" hidden>Knocker's name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
-      <div class="door-addr"><b id="d-addr">Finding where you are…</b><span class="muted" id="d-sub"></span></div>
-      <p class="muted" id="sync-status-d"></p>
-      <div class="row"><button class="btn small" id="d-mine" type="button" hidden>Use my location</button></div>
-      <div class="outs">
-        <button type="button" data-door="none" style="--c:#8a978f">No answer</button>
-        <button type="button" data-door="no" style="--c:#c0392b">Not interested</button>
-        <button type="button" data-door="lights" style="--c:#2f6fd6">Has lights</button>
-        <button type="button" data-door="later" style="--c:#e8a317">Come back later</button>
-        <button type="button" data-door="sale" id="sale-btn" class="wide" style="--c:#2e9e5b">Sale</button>
+  <div id="view-doors" style="display:none">
+    <!-- his design 11/17 + council #8 (majority items): a full map that follows you; tap or hold a house; one sheet with the answers -->
+    <div class="dbar">
+      <button id="d-knocker" class="dchip" type="button">Set your name</button>
+      <button id="d-today-chip" class="dchip" type="button">Today 0</button>
+      <button id="d-cb-chip" class="dchip" type="button">Come back 0</button>
+      <button id="d-sync-dot" class="sdot" type="button" aria-label="Sync status"></button>
+    </div>
+    <div class="dmapwrap">
+      <div id="dmap"></div>
+      <div id="hold-ring" class="hold-ring" hidden></div>
+      <div id="d-hint" class="dhint">Tap or hold a house</div>
+      <button id="d-me" class="dme" type="button" aria-label="Center on me">Me</button>
+      <button id="d-key" class="dkey" type="button">Key</button>
+      <div id="d-legend" class="dlegend" hidden><span><i style="background:#8a978f"></i>No answer</span><span><i style="background:#c0392b"></i>Not interested</span><span><i style="background:#2f6fd6"></i>Has lights</span><span><i style="background:#e8a317"></i>Come back later</span><span><i style="background:#2e9e5b"></i>Sale</span><span><i style="background:#17231d"></i>You</span></div>
+    </div>
+    <div id="dsheet" class="sheet" hidden>
+      <div class="sheet-head"><div class="door-addr"><b id="d-addr"></b><span class="muted" id="d-sub"></span></div><button id="d-close" class="x" type="button" aria-label="Close">×</button></div>
+      <div id="d-pick">
+        <div class="outs2">
+          <button type="button" data-door="none" style="--c:#8a978f"><i></i>No answer</button>
+          <button type="button" data-door="no" style="--c:#c0392b"><i></i>Not interested</button>
+          <button type="button" data-door="lights" style="--c:#2f6fd6"><i></i>Has lights</button>
+          <button type="button" data-door="later" style="--c:#e8a317"><i></i>Come back later</button>
+          <button type="button" data-door="sale" id="sale-btn" style="--c:#2e9e5b"><i></i>Sale</button>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="d-quote" type="button">Make a quote</button><button class="btn" id="d-type" type="button">Wrong house? Type it</button></div>
+        <div class="row" id="d-fix-row" hidden style="margin-top:8px"><input id="d-fix" type="text" placeholder="House number and street" autocomplete="off"><button class="btn small" id="d-fix-go" type="button">Use</button></div>
       </div>
       <div class="later-box" id="later-box" hidden>
         <b id="later-addr">Come back later</b>
@@ -363,27 +407,25 @@ details.comeback.due>summary{color:var(--warn)}
         <label class="f">Their name (optional)<input id="later-name" type="text" autocomplete="off" placeholder="Name"></label>
         <div class="row"><button class="btn primary" id="later-save" type="button">Save</button><button class="btn" id="later-skip" type="button">Skip</button></div>
       </div>
-      <details class="mini"><summary>Wrong house? Type it</summary>
-        <div class="row"><input id="d-fix" type="text" placeholder="House number and street" autocomplete="off"><button class="btn small" id="d-fix-go" type="button">Use</button></div></details>
-      <div class="row" style="justify-content:space-between"><span class="muted">Tap or hold a house to see its address.</span><button class="btn small" id="bigmap" type="button">Bigger map</button></div>
-      <div id="dmap"></div>
-      <div class="legend"><span><i style="background:#8a978f"></i>No answer</span><span><i style="background:#c0392b"></i>Not interested</span><span><i style="background:#2f6fd6"></i>Has lights</span><span><i style="background:#e8a317"></i>Come back later</span><span><i style="background:#2e9e5b"></i>Sale</span></div>
-      <p class="fine">Tap a dot to change that door. Tap a house on the map to pick it. No answer never replaces another answer.</p>
-    </section>
-    <section class="card">
-      <h2>Today</h2>
+    </div>
+    <div id="cbsheet" class="sheet" hidden>
+      <div class="sheet-head"><h2>Come back later</h2><button class="x" type="button" data-close="cbsheet" aria-label="Close">×</button></div>
+      <div id="cb-list" class="results"></div>
+    </div>
+    <div id="tsheet" class="sheet" hidden>
+      <div class="sheet-head"><h2>Today</h2><button class="x" type="button" data-close="tsheet" aria-label="Close">×</button></div>
+      <label class="f" id="who-row">Knocker's name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
       <div style="overflow-x:auto"><table><thead><tr><th>Knocker</th><th>Doors</th><th>No ans.</th><th>No</th><th>Lights</th><th>Later</th><th>Sales</th></tr></thead><tbody id="d-today"></tbody></table></div>
-    </section>
-    <section class="card">
-      <h2>Team sync</h2>
+      <h2 style="margin-top:14px">Team sync</h2>
       <p class="muted" id="sync-status"></p>
       <div class="row"><button class="btn small primary" id="sync-now" type="button">Sync now</button><button class="btn small" id="invite" type="button" hidden>Invite a teammate</button></div>
       <details class="mini"><summary>Join with an invite link</summary>
         <div class="row"><input id="join-in" type="text" placeholder="Paste the invite link" autocomplete="off"><button class="btn small" id="join-go" type="button">Join</button></div></details>
-      <p class="fine">Doors and quotes save on this phone first, then go to the team's private sheet when there's signal.</p>
-    </section>
+      <p class="fine">Doors and quotes save on this phone first, then go to the team's private sheet when there's signal. No answer never replaces another answer.</p>
+    </div>
   </div>
 </main>
+<button id="upd" class="updpill" type="button" hidden>New version ready · tap to refresh</button>
 <div class="bar" id="bar"><div><span class="note" id="bar-note">Total</span><br><b id="bar-total">$0</b></div><button class="btn primary" id="bar-go" type="button">See quote</button></div>
 <script>
 "use strict";
@@ -1369,6 +1411,7 @@ function syncStatus(){
   else msg = last ? "✓ All saved to the team sheet · " + new Date(last).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"}) : "Not synced yet.";
   for (const id of ["sync-status", "sync-status-l", "sync-status-d"]){ const el = $(id); if (el){ el.textContent = msg; el.classList.toggle("warn", !!(t && (n || syncErr) && !syncing)); } }
   $("invite").hidden = !t;
+  const dot = $("d-sync-dot"); dot.className = "sdot" + (!t ? "" : syncErr && /team code/.test(syncErr) ? " bad" : (n || syncErr) ? " wait" : " ok"); dot.title = msg;
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
 setInterval(() => { if (document.visibilityState === "visible") syncNow(); }, 60000);
@@ -1414,46 +1457,68 @@ const dlayer = L.layerGroup().addTo(dmap);
 let meDot = null, pickDot = null;
 function startGPS(){
   if (watchId !== null || !navigator.geolocation) return;
-  watchId = navigator.geolocation.watchPosition(onFix, () => { if (!here) $("d-sub").textContent = "Location is off. Tap the house on the map instead."; },
+  watchId = navigator.geolocation.watchPosition(onFix, () => { if (!here) $("d-hint").textContent = "Location is off. Tap a house to pick it."; },
     {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
 }
 function stopGPS(){ if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; } }
-async function onFix(pos){
+let following = true, meRing = null;
+function onFix(pos){
   const {latitude:lat, longitude:lon, accuracy} = pos.coords;
-  here = Object.assign(here && here.glat != null && ftBetween([here.glat, here.glon], [lat, lon]) < 15 ? here : {}, {glat:lat, glon:lon, acc:accuracy});
-  if (!meDot) meDot = L.circleMarker([lat, lon], {radius:7, color:"#fff", weight:3, fillColor:"#17231d", fillOpacity:1, interactive:false}).addTo(dmap);
-  else meDot.setLatLng([lat, lon]);
+  here = {glat:lat, glon:lon, acc:accuracy};
+  if (!meDot){
+    meRing = L.circle([lat, lon], {radius:accuracy, color:"#17231d", weight:1, opacity:.35, fillColor:"#17231d", fillOpacity:.08, interactive:false}).addTo(dmap);
+    meDot = L.circleMarker([lat, lon], {radius:8, color:"#fff", weight:3, fillColor:"#17231d", fillOpacity:1, interactive:false}).addTo(dmap);
+  } else { meDot.setLatLng([lat, lon]); meRing.setLatLng([lat, lon]).setRadius(accuracy); }
   if (firstFix){ firstFix = false; dmap.setView([lat, lon], 19); }
-  if (!fixBusy){
-    fixBusy = true;
-    try{ const a = await snapAddress(lat, lon); if (a) Object.assign(here, a); else { here.address = ""; here.addrKey = ""; } }catch(e){}
-    fixBusy = false;
-  }
-  showTarget();
+  else if (following && $("dsheet").hidden) dmap.panTo([lat, lon], {animate:true});
+  $("d-hint").textContent = "Tap or hold a house";
 }
+// "Me" turns following back on; dragging the map turns it off
+function paintMe(){ $("d-me").classList.toggle("off", !following); }
+dmap.on("dragstart", () => { following = false; paintMe(); });
+$("d-me").onclick = () => { following = true; paintMe(); if (here) dmap.setView([here.glat, here.glon], Math.max(dmap.getZoom(), 18)); else toast("Waiting for your location"); };
+$("d-key").onclick = () => { $("d-legend").hidden = !$("d-legend").hidden; };
+// the map fills the screen under the top bar
+function sizeMap(){
+  const top = $("dmap").getBoundingClientRect().top;
+  if (top > 0) $("dmap").style.height = Math.max(320, innerHeight - top - 12) + "px";
+  dmap.invalidateSize();
+}
+addEventListener("resize", () => { if ($("view-doors").style.display !== "none") sizeMap(); });
 function mark(p){ return Object.assign(p, {at: Date.now(), from: here && here.glat != null ? [here.glat, here.glon] : null}); }
 // the same street address in two cities is two doors: match only within ~500 ft
 const nearDoor = (x, t) => x.lat == null || t.lat == null || ftBetween([x.lat, x.lon], [t.lat, t.lon]) < 500;
 function findDoor(t){ const ds = doorsAll(); return t.id ? ds[t.id] : (t.addrKey ? Object.values(ds).find(x => x.addrKey === t.addrKey && nearDoor(x, t)) : null); }
-function target(){
-  if (picked && ((picked.at && Date.now() - picked.at > 120000) || (picked.from && here && here.glat != null && ftBetween(picked.from, [here.glat, here.glon]) > 60))) picked = null;
-  if (picked) return picked;
-  if (!here) return null;
-  return {address: here.address || "", addrKey: here.addrKey || "", lat: here.lat ?? here.glat, lon: here.lon ?? here.glon, number: here.number, street: here.street};
-}
+function target(){ return picked; }
 function showTarget(){
-  const t = target();
-  const d = t && findDoor(t);
-  $("d-addr").textContent = t ? (t.address || "Address not found yet") : "Finding where you are…";
-  const bits = [];
-  if (picked) bits.push("Picked on the map");
-  else if (here && here.acc) bits.push("Your location, ±" + Math.round(here.acc * 3.28084) + " ft");
-  if (d) bits.push("Last: " + doorLine(d));
-  $("d-sub").textContent = bits.join(" · ");
-  $("d-mine").hidden = !picked;
+  const t = target(), d = t && findDoor(t);
   if (pickDot){ dmap.removeLayer(pickDot); pickDot = null; }
-  if (picked && picked.lat != null) pickDot = L.circleMarker([picked.lat, picked.lon], {radius:13, color:"#17231d", weight:3, fill:false, interactive:false}).addTo(dmap);
+  if (!t) return;
+  $("d-addr").textContent = t.address || "Address not found yet";
+  $("d-sub").textContent = d ? "Last: " + doorLine(d) : "Not knocked yet";
+  if (t.lat != null) pickDot = L.circleMarker([t.lat, t.lon], {radius:16, color:"#e8a317", weight:5, fill:false, interactive:false}).addTo(dmap);
 }
+// ---- sheets: one open at a time; the house sheet sits under the house so the highlighted house stays in view
+function closeSheets(){
+  for (const id of ["dsheet", "cbsheet", "tsheet"]) $(id).hidden = true;
+  picked = null; laterFor = null; showTarget();
+}
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
+$("d-close").onclick = closeSheets;
+function openHouse(t){
+  closeSheets();
+  picked = mark(t);
+  $("d-pick").hidden = false; $("later-box").hidden = true; $("d-fix-row").hidden = true;
+  $("sale-btn").innerHTML = "<i></i>Sale"; armed = null;
+  $("dsheet").hidden = false; showTarget();
+  // keep the house above the sheet
+  if (t.lat != null) requestAnimationFrame(() => {
+    const pt = dmap.latLngToContainerPoint([t.lat, t.lon]), h = $("dmap").clientHeight, sheetTop = $("dsheet").getBoundingClientRect().top - $("dmap").getBoundingClientRect().top;
+    const want = Math.max(60, Math.min(h * .3, sheetTop - 70));
+    dmap.panBy([0, pt.y - want], {animate:true});
+  });
+}
+function openSheet(id){ closeSheets(); $(id).hidden = false; }
 // "Come back later: Maria · Tomorrow (Ann)"
 // when is stored as "tomorrow@18:00" or "weekend-6@10:00" (day 6 = Sat, 0 = Sun); the due time is d.due
 function parseWhen(w){ const m = String(w || "").match(/^(tonight|tomorrow|weekend)(?:-([06]))?(?:@(\d\d:\d\d))?$/); return m ? {when:m[1], day:m[2] ?? "", time:m[3] || ""} : {when:"", day:"", time:""}; }
@@ -1475,42 +1540,63 @@ function bubble(lat, lon, title, sub){
   if (sub){ const s = document.createElement("div"); s.textContent = sub; el.appendChild(s); }
   L.popup({closeButton:false, autoPan:true}).setLatLng([lat, lon]).setContent(el).openOn(dmap);
 }
-$("d-mine").onclick = () => { picked = null; showTarget(); if (here && here.glat) dmap.setView([here.glat, here.glon], 19); };
 // tap a dot = that door; tap anywhere else = the nearest house to the tap
+let lastPick = 0;
 async function pickHouseAt(ll){
+  if (Date.now() - lastPick < 700) return;   // a hold also fires the map's own long-press event: one pick only
+  lastPick = Date.now();
+  if (dmap.getZoom() < 17){ dmap.setView(ll, 18); toast("Zoomed in. Now tap the house"); return; }   // too far out to hit the right house
   const a = await snapAddress(ll.lat, ll.lng).catch(() => null);
   if (!a){ toast("No house address there"); return; }
   const d = findDoor(a);
-  picked = mark(d ? {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon} : a); showTarget();
-  bubble(a.lat, a.lon, a.address, d ? doorLine(d) : "Not knocked yet");
+  openHouse(d ? {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon} : a);
 }
-dmap.on("click", ev => pickHouseAt(ev.latlng));
-dmap.on("contextmenu", ev => pickHouseAt(ev.latlng));   // press and hold on a phone
-$("bigmap").onclick = () => { const on = $("view-doors").classList.toggle("bigmap"); $("bigmap").textContent = on ? "Smaller map" : "Bigger map"; setTimeout(() => dmap.invalidateSize(), 60); };
+dmap.on("click", ev => { if (Date.now() - holdAt > 900) pickHouseAt(ev.latlng); });
+dmap.on("contextmenu", ev => pickHouseAt(ev.latlng));   // Leaflet's own long press
+// press and hold: a ring grows under the finger; at 0.45 s the house under it opens (moving cancels)
+let holdT = null, holdAt = 0, holdStart = null;
+const dmapEl = $("dmap");
+dmapEl.addEventListener("touchstart", e => {
+  if (e.touches.length !== 1) { clearTimeout(holdT); $("hold-ring").hidden = true; return; }
+  const r = dmapEl.getBoundingClientRect(), x = e.touches[0].clientX - r.left, y = e.touches[0].clientY - r.top;
+  holdStart = [x, y]; const ring = $("hold-ring"); ring.style.left = x + "px"; ring.style.top = y + "px";
+  ring.hidden = true; void ring.offsetWidth;
+  clearTimeout(holdT);
+  holdT = setTimeout(() => { ring.hidden = true; holdAt = Date.now(); pickHouseAt(dmap.containerPointToLatLng(holdStart)); }, 450);
+  setTimeout(() => { if (holdT && holdStart) ring.hidden = false; }, 120);
+}, {passive:true});
+dmapEl.addEventListener("touchmove", e => {
+  if (!holdStart) return;
+  const r = dmapEl.getBoundingClientRect(), dx = e.touches[0].clientX - r.left - holdStart[0], dy = e.touches[0].clientY - r.top - holdStart[1];
+  if (Math.hypot(dx, dy) > 12){ clearTimeout(holdT); holdT = null; holdStart = null; $("hold-ring").hidden = true; }
+}, {passive:true});
+dmapEl.addEventListener("touchend", () => { clearTimeout(holdT); holdT = null; holdStart = null; $("hold-ring").hidden = true; }, {passive:true});
+$("d-type").onclick = () => { $("d-fix-row").hidden = false; $("d-fix").focus(); };
 $("d-fix-go").onclick = () => {
   const v = $("d-fix").value.trim(); if (!v) return;
   const t = target() || {};
   picked = mark({address: v, addrKey: addrKey(v), lat: t.lat ?? null, lon: t.lon ?? null});
-  $("d-fix").value = ""; showTarget(); toast("Using " + v);
+  $("d-fix").value = ""; $("d-fix-row").hidden = true; showTarget(); toast("Using " + v);
 };
+// his ask 11/17: "Make a quote" opens the quote with this house found, without logging an answer
+$("d-quote").onclick = () => { const t = target(); if (!t) return; const d = Object.assign({}, t); closeSheets(); startQuote(d); };
 document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => knock(b.dataset.door));
 let laterFor = null, laterWhen = "", armed = null;
 function armedOk(key){
-  if (armed && armed.key === key && Date.now() - armed.at < 5000){ armed = null; $("sale-btn").textContent = "Sale"; return true; }
+  if (armed && armed.key === key && Date.now() - armed.at < 5000){ armed = null; $("sale-btn").innerHTML = "<i></i>Sale"; return true; }
   armed = {key, at: Date.now()};
-  setTimeout(() => { if (armed && armed.key === key){ armed = null; $("sale-btn").textContent = "Sale"; } }, 5000);
+  setTimeout(() => { if (armed && armed.key === key){ armed = null; $("sale-btn").innerHTML = "<i></i>Sale"; } }, 5000);
   return false;
 }
 function knock(outcome){
-  if (!S.seller){ toast("Type the knocker's name first"); $("who-row").hidden = false; $("who").focus(); return; }
-  $("later-box").hidden = true; laterFor = null;
+  if (!S.seller){ openSheet("tsheet"); $("who").focus(); toast("Type the knocker's name first"); return; }
   const t = target();
-  if (!t || t.lat == null){ toast("Waiting for your location. Or tap the house on the map."); return; }
+  if (!t){ toast("Tap a house first"); return; }
   const ds = doorsAll();
   let d = findDoor(t);
   // council #7 (3 of 5): the house must be unmistakable before a Sale; and one stray tap can't erase a Sale
   if (outcome === "sale" && !armedOk("sale|" + (d ? d.id : t.addrKey || t.address))){
-    $("sale-btn").textContent = "Tap again: Sale at " + (t.address || "this house"); return;
+    $("sale-btn").innerHTML = "<i></i>"; $("sale-btn").append("Tap again: Sale at " + (t.address || "this house")); return;
   }
   if (d && d.outcome === "sale" && outcome !== "sale" && outcome !== "none" && !armedOk("unsale|" + d.id + outcome)){
     toast(`This house is a Sale. Tap "${OUT[outcome].label}" again to change it.`); return;
@@ -1524,15 +1610,16 @@ function knock(outcome){
   enqueue("door", d.id, Object.assign({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome}, outcome === "later" ? {laterBy: S.seller} : {}));
   renderDoors();
   toast(kept ? `Kept "${OUT[d.outcome].label}" (No answer doesn't replace it)` : `${OUT[outcome].label}: ${d.address || "saved"}`);
-  picked = null; showTarget();
-  if (outcome === "sale") startQuote(d);
-  // Come back later is saved already; the box only adds when and who (council #6: a tap must never wait on typing)
+  // Come back later is saved already; the sheet now asks when and who (council #6: a tap must never wait on typing)
   if (outcome === "later" && !kept){
-    laterFor = d.id; const w = parseWhen(d.when); laterWhen = w.when; laterDay = w.day; laterTime = w.time;
+    laterFor = d.id; const w = parseWhen(d.when); laterWhen = w.when || "tonight"; laterDay = w.day; laterTime = w.time;
     $("later-addr").textContent = "Come back later: " + (d.address || "this house");
     $("later-name").value = d.name || "";
-    paintLater(); $("later-box").hidden = false;
+    paintLater(); $("d-pick").hidden = true; $("later-box").hidden = false;
+    return;
   }
+  closeSheets();
+  if (outcome === "sale") startQuote(d);
 }
 // his ask 11/17: picking Tonight / Tomorrow / Weekend then asks what time (and Sat or Sun for the weekend)
 let laterDay = "", laterTime = "";
@@ -1570,9 +1657,9 @@ $("later-save").onclick = () => {
     enqueue("door", d.id, {id:d.id, outcome:"later", name:d.name, when:d.when, due:d.due, fill:true});
     toast("Saved" + (d.name ? ": " + d.name : "") + (d.when ? " · " + whenLabel(d) : ""));
   }
-  $("later-box").hidden = true; laterFor = null; renderDoors();
+  closeSheets(); renderDoors();
 };
-$("later-skip").onclick = () => { $("later-box").hidden = true; laterFor = null; };
+$("later-skip").onclick = () => { closeSheets(); toast("Saved: Come back later"); };
 // Sale: open the quote with the house already found
 function startQuote(d){
   showTab("quote");
@@ -1602,7 +1689,7 @@ function renderDoors(){
   for (const d of ds){
     if (d.lat == null) continue;
     L.circleMarker([d.lat, d.lon], {radius:9, color:"#ffffff", weight:2, fillColor:(OUT[d.outcome] || OUT.none).color, fillOpacity:1, bubblingMouseEvents:false})
-      .on("click", () => { picked = mark({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}); showTarget(); bubble(d.lat, d.lon, d.address || "No address yet", doorLine(d)); })
+      .on("click", () => openHouse({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}))
       .addTo(dlayer);
   }
   // today, per seller (a door counts for whoever touched it last)
@@ -1617,6 +1704,8 @@ function renderDoors(){
   $("d-today").innerHTML = names.length ? names.map(n => { const r = rows[n]; return `<tr><td></td><td>${r.doors}</td><td>${r.none}</td><td>${r.no}</td><td>${r.lights}</td><td>${r.later}</td><td>${r.sale}</td></tr>`; }).join("")
     : '<tr><td class="muted" colspan="7" style="text-align:left">No doors yet today.</td></tr>';
   [...$("d-today").querySelectorAll("tr")].forEach((tr, i) => { if (names[i]) tr.firstChild.textContent = names[i]; });
+  const mine = rows[S.seller] || {doors:0, sale:0};
+  $("d-today-chip").textContent = `Today ${mine.doors}` + (mine.sale ? ` · ${mine.sale} sale${mine.sale > 1 ? "s" : ""}` : "");
   renderComeBack();
   showTarget();
 }
@@ -1627,26 +1716,28 @@ function renderComeBack(){
   const dist = d => pos ? ftBetween(pos, [d.lat, d.lon]) : 0;
   list.sort((a, b) => ((a.due || Infinity) - (b.due || Infinity)) || (dist(a) - dist(b)));
   const due = list.filter(d => d.due && d.due <= now).length;
-  $("cb-card").hidden = !list.length;
-  $("cb-card").classList.toggle("due", due > 0);
-  $("cb-sum").textContent = "Come back: " + list.length + (due ? ` (${due} due now)` : "");
-  const box = $("cb-list"); box.innerHTML = "";
+  $("d-cb-chip").classList.toggle("due", due > 0);
+  $("d-cb-chip").textContent = "Come back " + list.length + (due ? ` · ${due} due` : "");
+  const box = $("cb-list"); box.innerHTML = list.length ? "" : '<p class="muted">No come-backs right now.</p>';
   for (const d of list){
     const b = document.createElement("button"); b.type = "button"; b.className = "cb" + (d.due && d.due <= now ? " due" : "");
     const t = document.createElement("b"); t.textContent = d.address || "No address yet";
     const s = document.createElement("span"); s.className = "muted";
     s.textContent = [d.name, whenLabel(d), (d.laterBy || d.seller) ? "by " + (d.laterBy || d.seller) : "", pos ? Math.round(dist(d)) + " ft away" : ""].filter(x => x && x.trim()).join(" · ");
     b.append(t, s);
-    b.onclick = () => { picked = mark({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}); showTarget(); dmap.setView([d.lat, d.lon], 19); bubble(d.lat, d.lon, d.address, doorLine(d)); window.scrollTo({top: $("d-addr").getBoundingClientRect().top + scrollY - 80, behavior:"smooth"}); };
+    b.onclick = () => { closeSheets(); following = false; paintMe(); dmap.setView([d.lat, d.lon], 19); setTimeout(() => openHouse({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}), 250); };
     box.appendChild(b);
   }
 }
 // your first name: tags every door and quote, so the team sees who did what
 function showWho(){
-  $("who-row").hidden = !!S.seller; $("who").value = S.seller || "";
-  $("d-knocker").textContent = S.seller ? "Knocker: " + S.seller : "";
+  $("who").value = S.seller || "";
+  $("d-knocker").textContent = S.seller ? S.seller : "Set your name";
 }
-$("d-knocker").onclick = () => { $("who-row").hidden = false; $("who").focus(); };
+$("d-knocker").onclick = () => { openSheet("tsheet"); $("who").focus(); };
+$("d-today-chip").onclick = () => openSheet("tsheet");
+$("d-cb-chip").onclick = () => { renderComeBack(); openSheet("cbsheet"); };
+$("d-sync-dot").onclick = () => openSheet("tsheet");
 $("who").addEventListener("change", () => {
   const v = $("who").value.trim(); if (!v) return;
   S.seller = v; store.set("lq-settings", S); $("s-seller").value = v; showWho();
@@ -1654,6 +1745,27 @@ $("who").addEventListener("change", () => {
   toast("Hi " + v);
 });
 showWho(); renderDoors(); syncStatus();
+// New version check (council #8): when the app comes back to the front and every 30 min.
+// Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
+const APP_VERSION = "20261117124333";
+function idleForReload(){
+  if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
+  const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
+  if ($("view-quote").style.display !== "none" && st.address) return false;   // a quote in progress
+  return true;
+}
+async function checkVersion(){
+  if (APP_VERSION === "dev" || !navigator.onLine) return;
+  try{
+    const txt = await (await fetch("./index.html?v=" + Date.now(), {cache:"no-store"})).text();
+    const m = txt.match(/const APP_VERSION = "([^"]+)"/);
+    if (!m || m[1] === APP_VERSION) return;
+    if (idleForReload()) location.reload(); else $("upd").hidden = false;
+  }catch(e){}
+}
+$("upd").onclick = () => location.reload();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+setInterval(checkVersion, 30 * 60000);
 // Opens with no signal: a service worker keeps the page and its libraries (council #7 + bug found 11/17)
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 setInterval(() => { if ($("view-doors").style.display !== "none") renderComeBack(); }, 60000);
@@ -1663,7 +1775,8 @@ if (team()){ queueLeadChanges(leads()); syncNow(); }
 function showTab(t){
   for (const v of ["quote","leads","stock","doors"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; const tb = $("tab-" + v); if (tb) tb.setAttribute("aria-selected", t === v || (t === "stock" && v === "quote")); }
   if (t === "stock") renderStock();
-  if (t === "doors"){ startGPS(); showWho(); renderDoors(); setTimeout(() => dmap.invalidateSize(), 50); fillAddresses().catch(() => {}); } else stopGPS();
+  if (t === "doors"){ startGPS(); showWho(); renderDoors(); setTimeout(sizeMap, 50); fillAddresses().catch(() => {}); if (!S.seller) setTimeout(() => { openSheet("tsheet"); }, 300); }
+  else { stopGPS(); if (typeof closeSheets === "function") closeSheets(); }
   $("bar").hidden = t !== "quote";
   if (t === "quote") setTimeout(() => map.invalidateSize(), 50);
 }
