@@ -108,7 +108,6 @@ main{padding-bottom:84px}
 .seg.three{grid-template-columns:1fr 1fr 1fr}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
-#pv{width:100%;touch-action:none;border-radius:10px;display:block;background:#000}
 .filebtn{display:inline-block;text-align:center}
 </style>
 </head>
@@ -119,7 +118,6 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="tabs" role="tablist">
       <button id="tab-quote" role="tab" aria-selected="true">Quote</button>
       <button id="tab-leads" role="tab" aria-selected="false">Leads <span id="due-count"></span></button>
-      <button id="tab-stock" role="tab" aria-selected="false">Stock <span id="short-count"></span></button>
     </div>
   </div>
 
@@ -142,17 +140,6 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <button id="st-1" aria-pressed="true" type="button">1 story</button>
         <button id="st-2" aria-pressed="false" type="button">2 story</button>
       </div>
-      <div class="q"><span class="qlabel">Roof lines</span>
-        <div class="chips" role="group" aria-label="Roof lines">
-          <button type="button" class="chip" id="ln-gutters" aria-pressed="true">Gutters</button>
-          <button type="button" class="chip" id="ln-peaks" aria-pressed="false">Peaks</button>
-          <button type="button" class="chip" id="ln-ridge" aria-pressed="false">Ridge</button>
-        </div></div>
-      <p class="muted">The outline is the roof edge, seen from above. Peaks adds the slanted edges over the gables. Ridge is the top line of the roof, priced on its own line.</p>
-      <div class="stepper" id="lower-row" hidden><span>Lower roof <span class="muted">(porch or garage roof under the 2nd story, feet)</span></span>
-        <div class="ctl"><button type="button" id="lower-minus" aria-label="Less lower roof">−</button><output id="lower-out">0 ft</output><button type="button" id="lower-plus" aria-label="More lower roof">+</button></div></div>
-      <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check from the street)</span></span>
-        <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
       <div class="feet"><b id="feet-out">0</b><span>ft of roofline</span><span class="muted" id="feet-detail"></span></div>
       <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Open in Google Maps</a>
       <details class="mini"><summary>Type the feet yourself</summary>
@@ -178,24 +165,15 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="ctl"><button type="button" data-step="walk" data-d="-5" aria-label="5 ft less walkway">−</button><output data-out="walk">0</output><button type="button" data-step="walk" data-d="5" aria-label="5 ft more walkway">+</button></div></div>
     </section>
 
-    <section class="card" id="preview-card">
-      <h2>Show it lit up <span class="muted" style="text-transform:none;letter-spacing:0">(optional)</span></h2>
-      <label class="btn filebtn" for="photo-in">Take a photo of the house</label>
-      <input id="photo-in" type="file" accept="image/*" capture="environment" hidden>
-      <div id="pv-wrap" hidden style="display:grid;gap:10px">
-        <canvas id="pv"></canvas>
-        <div class="seg" role="group" aria-label="Drawing tool">
-          <button data-tool="line" aria-pressed="true" type="button">Line (roof, ridge)</button>
-          <button data-tool="bush" aria-pressed="false" type="button">Bush (circle it)</button>
-        </div>
-        <div class="row">
-          <button class="btn small" id="pv-undo" type="button">Undo</button>
-          <button class="btn small" id="pv-clear" type="button">Clear</button>
-          <button class="chip" id="pv-night" aria-pressed="true" type="button">Night</button>
-          <button class="btn small primary" id="pv-share" type="button">Share picture</button>
-        </div>
-        <p class="muted">Line: drag your finger along a roof edge or the ridge. Bush: drag a circle around a bush.</p>
-      </div>
+    <section class="card" id="picture-card">
+      <h2>Picture for the customer <span class="muted" style="text-transform:none;letter-spacing:0">(optional)</span></h2>
+      <label class="check"><input id="pic-ok" type="checkbox"> They said it's OK to use a photo of their house</label>
+      <label class="btn filebtn" for="pic-in">Take a photo and send it for the lit-up picture</label>
+      <input id="pic-in" type="file" accept="image/*" capture="environment" hidden>
+      <p class="muted">It goes out with a list of exactly what's quoted, so the picture only shows what they're paying for, marked EXAMPLE.</p>
+      <label class="btn small filebtn" for="lit-in">Got the picture back? Add it to the quote PDF</label>
+      <input id="lit-in" type="file" accept="image/*" hidden>
+      <img id="lit-img" alt="Lit-up picture" hidden style="width:100%;border-radius:10px">
     </section>
 
     <section class="card">
@@ -217,6 +195,7 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
           <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
           <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
         </div>
+        <p class="fine" id="q-next" hidden></p>
         <p class="fine" id="q-fine">You keep the lights. Takedown is included. Final feet confirmed on install day.</p>
       </div>
       <div class="grid2">
@@ -262,6 +241,22 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
       <div class="row"><button class="btn small" id="cost-hq" type="button">HQ pack $1.99/ft</button><button class="btn small" id="cost-bulk" type="button">Bulk $1.00/ft</button></div>
       <p class="fine">Speeds are starting guesses. Put in your real times after your first few houses. Trunk wrap = about 1.5 mini strands; full trees = 6 / 9 / 12.5 strands (small / medium / large).</p>
+    </details>
+
+    <details class="card" id="more">
+      <summary>More: roof extras, stock</summary>
+      <div class="q"><span class="qlabel">Roof extras</span>
+        <div class="chips" role="group" aria-label="Roof lines">
+          <button type="button" class="chip" id="ln-gutters" aria-pressed="true">Gutters</button>
+          <button type="button" class="chip" id="ln-peaks" aria-pressed="false">Peaks</button>
+          <button type="button" class="chip" id="ln-ridge" aria-pressed="false">Ridge</button>
+        </div></div>
+      <p class="muted">The outline is the roof edge, seen from above. Peaks adds the slanted edges over the gables. Ridge is the top line of the roof, priced on its own line.</p>
+      <div class="stepper" id="lower-row" hidden><span>Lower roof <span class="muted">(porch or garage roof under the 2nd story, feet)</span></span>
+        <div class="ctl"><button type="button" id="lower-minus" aria-label="Less lower roof">−</button><output id="lower-out">0 ft</output><button type="button" id="lower-plus" aria-label="More lower roof">+</button></div></div>
+      <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check from the street)</span></span>
+        <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
+      <button class="btn small" id="open-stock" type="button">Stock: lights on hand <span id="short-count"></span></button>
     </details>
   </div>
 
@@ -742,6 +737,9 @@ function costs(p){
     ["Timer", timer, "1 per house"]].filter(r => r[1] > 0);
   return {materials, install, down, hours: install + down, parts};
 }
+// His idea 11/16: we take the lights down, store them, and hang them again next year for the install-only
+// price (the returning-customer price for the same lines, no lights cost).
+function nextYearPrice(lvl){ const r = st.returning; st.returning = true; const v = priceAt(lvl).total; st.returning = r; return v; }
 function yardLabel(){
   const bits = [], bushes = st.small + st.big, trees = st.trunk + st.canS + st.canM + st.canL;
   if (bushes) bits.push(`${bushes} bush${bushes > 1 ? "es" : ""}`);
@@ -760,6 +758,8 @@ function update(){
   $("q-walk-row").hidden = !p.walk; $("q-walk-label").textContent = `Walkway, ${p.walkFt} ft`; $("q-walk").textContent = money(p.walk);
   $("q-min-row").hidden = !p.minAdd; $("q-min").textContent = "+" + money(p.minAdd);
   $("q-fine").textContent = (st.returning ? "You already own the lights; this covers install and takedown." : "You keep the lights. Takedown is included.") + " Final feet confirmed on install day.";
+  const ny = st.returning ? 0 : nextYearPrice(st.level);
+  $("q-next").hidden = !ny || !p.total; $("q-next").textContent = `Next year: we store your lights for you and hang them again for ${money(ny)} (install and takedown only).`;
   $("q-total").textContent = money(p.total);
   const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
   // running total bar and the $1,000 limit
@@ -787,88 +787,6 @@ SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener(
 $("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
 $("cost-bulk").onclick = () => { S.costft = 1.00; $("s-costft").value = 1.00; store.set("lq-settings", S); update(); };
 
-// ---------- "Show it lit up": photo + finger-drawn lights ----------
-// Line = C9 bulbs along a roof edge or ridge. Bush = a circle filled with net lights. Night darkens the photo.
-const pv = {img:null, shapes:[], tool:"line", night:true, cur:null, used:false};
-const pvc = $("pv"), pvx = pvc.getContext("2d");
-$("photo-in").addEventListener("change", ev => {
-  const f = ev.target.files && ev.target.files[0]; if (!f) return;
-  const img = new Image();
-  img.onload = () => {
-    const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
-    pvc.width = Math.round(img.width * scale); pvc.height = Math.round(img.height * scale);
-    pv.img = img; pv.shapes = []; pv.used = false; $("pv-wrap").hidden = false; pvRender();
-  };
-  img.src = URL.createObjectURL(f);
-});
-document.querySelectorAll("[data-tool]").forEach(b => b.onclick = () => {
-  pv.tool = b.dataset.tool; document.querySelectorAll("[data-tool]").forEach(x => x.setAttribute("aria-pressed", x === b));
-});
-$("pv-undo").onclick = () => { pv.shapes.pop(); pvRender(); };
-$("pv-clear").onclick = () => { pv.shapes = []; pvRender(); };
-$("pv-night").onclick = () => { pv.night = !pv.night; $("pv-night").setAttribute("aria-pressed", pv.night); pvRender(); };
-function pvPoint(ev){ const r = pvc.getBoundingClientRect(); return [(ev.clientX - r.left) * pvc.width / r.width, (ev.clientY - r.top) * pvc.height / r.height]; }
-pvc.addEventListener("pointerdown", ev => { if (!pv.img) return; ev.preventDefault(); pvc.setPointerCapture(ev.pointerId); pv.cur = {type: pv.tool, pts: [pvPoint(ev)]}; });
-pvc.addEventListener("pointermove", ev => {
-  if (!pv.cur) return; const q = pvPoint(ev), last = pv.cur.pts[pv.cur.pts.length - 1];
-  if (Math.hypot(q[0]-last[0], q[1]-last[1]) > 4){ pv.cur.pts.push(q); pvRender(); }
-});
-pvc.addEventListener("pointerup", () => {
-  if (!pv.cur) return; const c = pv.cur; pv.cur = null;
-  if (c.type === "bush"){
-    const xs = c.pts.map(p => p[0]), ys = c.pts.map(p => p[1]);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const rx = (Math.max(...xs) - Math.min(...xs)) / 2, ry = (Math.max(...ys) - Math.min(...ys)) / 2;
-    if (rx > 6 && ry > 6){
-      const sp = bulbSpacing() * 0.55, n = Math.max(12, Math.round(Math.PI * rx * ry / (sp * sp)));
-      let seed = Math.round(cx * 7 + cy * 13); const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      const dots = [];
-      for (let i = 0; i < n; i++){ const t = rnd() * 2 * Math.PI, r = Math.sqrt(rnd()); dots.push([cx + r * rx * Math.cos(t), cy + r * ry * Math.sin(t)]); }
-      pv.shapes.push({type:"bush", cx, cy, rx, ry, dots});
-    }
-  } else if (c.pts.length > 1) pv.shapes.push(c);
-  pv.used = pv.shapes.length > 0; pvRender();
-});
-function bulbSpacing(){ return Math.max(10, pvc.width / 60); }
-function glow(x, y, r, core){
-  const g = pvx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, "rgba(255,244,214,1)"); g.addColorStop(core, "rgba(255,206,120,.85)"); g.addColorStop(1, "rgba(255,170,60,0)");
-  pvx.fillStyle = g; pvx.beginPath(); pvx.arc(x, y, r, 0, 2 * Math.PI); pvx.fill();
-}
-function pvRender(){
-  if (!pv.img) return;
-  pvx.globalCompositeOperation = "source-over";
-  pvx.drawImage(pv.img, 0, 0, pvc.width, pvc.height);
-  if (pv.night){ pvx.fillStyle = "rgba(6,12,38,.66)"; pvx.fillRect(0, 0, pvc.width, pvc.height); }
-  const sp = bulbSpacing(), shapes = pv.cur ? pv.shapes.concat([pv.cur]) : pv.shapes;
-  for (const sh of shapes){
-    if (sh.type === "bush"){
-      if (!sh.dots){ // still drawing: show the outline
-        pvx.strokeStyle = "rgba(255,206,120,.8)"; pvx.lineWidth = 2; pvx.beginPath();
-        sh.pts.forEach((p, i) => i ? pvx.lineTo(p[0], p[1]) : pvx.moveTo(p[0], p[1])); pvx.stroke(); continue;
-      }
-      pvx.globalCompositeOperation = "lighter";
-      const halo = pvx.createRadialGradient(sh.cx, sh.cy, 0, sh.cx, sh.cy, Math.max(sh.rx, sh.ry) * 1.15);
-      halo.addColorStop(0, "rgba(255,190,90,.22)"); halo.addColorStop(1, "rgba(255,190,90,0)");
-      pvx.fillStyle = halo; pvx.beginPath(); pvx.ellipse(sh.cx, sh.cy, sh.rx * 1.15, sh.ry * 1.15, 0, 0, 2 * Math.PI); pvx.fill();
-      for (const d of sh.dots) glow(d[0], d[1], sp * 0.42, .25);
-      pvx.globalCompositeOperation = "source-over";
-    } else {
-      // wire, then bulbs every `sp` pixels along the drawn path
-      pvx.strokeStyle = "rgba(20,40,25,.9)"; pvx.lineWidth = Math.max(1.5, sp / 9); pvx.beginPath();
-      sh.pts.forEach((p, i) => i ? pvx.lineTo(p[0], p[1]) : pvx.moveTo(p[0], p[1])); pvx.stroke();
-      pvx.globalCompositeOperation = "lighter";
-      let carry = 0;
-      for (let i = 1; i < sh.pts.length; i++){
-        const [x0, y0] = sh.pts[i-1], [x1, y1] = sh.pts[i], L = Math.hypot(x1 - x0, y1 - y0);
-        let t = carry;
-        while (t <= L){ const f = L ? t / L : 0; glow(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, sp * 0.75, .18); t += sp; }
-        carry = t - L;
-      }
-      pvx.globalCompositeOperation = "source-over";
-    }
-  }
-}
 async function shareFile(blob, name, title){
   const file = new File([blob], name, {type: blob.type});
   try{
@@ -878,7 +796,52 @@ async function shareFile(blob, name, title){
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-$("pv-share").onclick = () => { if (!pv.img) return; pvc.toBlob(b => b && shareFile(b, "lights-preview.jpg", "Your house with lights"), "image/jpeg", 0.9); };
+// ---------- Picture for the customer (council #3 item 5, his yes) ----------
+// He photographs the house; the photo goes out (share sheet) with an exact list of what's quoted, so the
+// lit-up picture shows only what the customer is paying for, stamped EXAMPLE. Needs the customer's OK first.
+function pictureOrder(){
+  const p = priceAt(st.level), lines = [];
+  const walls = st.edges.filter(e => e.main && e.on).length;
+  if (st.gutters && p.feet) lines.push(`- Roofline gutters, ${st.wrap === "all" ? "all the way around the house" : "the front of the house only (the side facing the street)"}, about ${p.feet} ft`);
+  if (st.peaks) lines.push("- The slanted roof edges of each gable on those sides, up to the peak");
+  if (st.ridgeOn) lines.push(`- The top ridge line of the roof, about ${st.ridge} ft`);
+  if (st.story === 2 && st.lower) lines.push(`- The lower roof edge (porch or garage), about ${st.lower} ft`);
+  if (st.small) lines.push(`- ${st.small} small bush${st.small > 1 ? "es" : ""}, net lights`);
+  if (st.big) lines.push(`- ${st.big} big bush${st.big > 1 ? "es" : ""}, net lights`);
+  if (st.trunk) lines.push(`- ${st.trunk} tree trunk${st.trunk > 1 ? "s" : ""} wrapped`);
+  const full = [["small", st.canS], ["medium", st.canM], ["large", st.canL]].filter(t => t[1]);
+  for (const [sz, n] of full) lines.push(`- ${n} ${sz} tree${n > 1 ? "s" : ""}, fully wrapped`);
+  if (p.walkFt) lines.push(`- Walkway lights, about ${p.walkFt} ft`);
+  return ["LIGHT QUOTE PICTURE", st.address ? "House: " + st.address : "", "Light ONLY these, nothing else:", ...lines,
+          "Stamp it EXAMPLE. Quote total " + money(p.total) + "."].filter(Boolean).join("\n");
+}
+$("pic-in").addEventListener("change", async ev => {
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = "";
+  if (!f) return;
+  if (!$("pic-ok").checked){ toast("Ask if it's OK to use a photo of their house first"); return; }
+  if (!priceAt(st.level).total){ toast("Build the quote first"); return; }
+  const order = pictureOrder();
+  try{
+    const file = new File([f], "house.jpg", {type: f.type || "image/jpeg"});
+    if (navigator.canShare && navigator.canShare({files:[file], text: order})){ await navigator.share({files:[file], text: order}); return; }
+  }catch(e){ if (e && e.name === "AbortError") return; }
+  try{ await navigator.clipboard.writeText(order); toast("Couldn't share here. The list is copied: send it with the photo"); }
+  catch(e){ toast("Couldn't share on this phone"); }
+});
+// the lit-up picture that came back, kept for the quote PDF
+const lit = {data:null, w:0, h:0};
+$("lit-in").addEventListener("change", ev => {
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    lit.data = c.toDataURL("image/jpeg", 0.85); lit.w = c.width; lit.h = c.height;
+    $("lit-img").src = lit.data; $("lit-img").hidden = false; toast("Added. It goes in the quote PDF");
+  };
+  img.src = URL.createObjectURL(f);
+});
+
 
 // ---------- Quote PDF ----------
 $("pdf-btn").onclick = async () => {
@@ -894,11 +857,10 @@ $("pdf-btn").onclick = async () => {
   doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(93, 107, 99);
   [name && "For: " + name, addr && "Home: " + addr, "Date: " + date, me && "Prepared by: " + me].filter(Boolean).forEach(t => { doc.text(t, M, y); y += 15; });
   y += 8;
-  // picture: the lit-up photo if he made one
-  if (pv.used){
-    const img = pvc.toDataURL("image/jpeg", 0.85), maxW = W - 2*M, maxH = 250;
-    const k = Math.min(maxW / pvc.width, maxH / pvc.height), iw = pvc.width * k, ih = pvc.height * k;
-    doc.addImage(img, "JPEG", M + (maxW - iw) / 2, y, iw, ih); y += ih + 16;
+  // the lit-up picture, if he added the one that came back
+  if (lit.data){
+    const maxW = W - 2*M, maxH = 250, k = Math.min(maxW / lit.w, maxH / lit.h), iw = lit.w * k, ih = lit.h * k;
+    doc.addImage(lit.data, "JPEG", M + (maxW - iw) / 2, y, iw, ih); y += ih + 16;
   }
   // drawing of the house from above, lit walls in gold
   const main = st.edges.filter(e => e.main);
@@ -939,7 +901,8 @@ $("pdf-btn").onclick = async () => {
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   const inc = st.returning
     ? ["Your lights put back up on the lines listed above.", "We come back and take them down. Takedown is included in the price.", "Final feet are confirmed on install day."]
-    : ["Lights put up on the lines listed above.", "You keep the lights after the season.", "We come back and take them down. Takedown is included in the price.", "Final feet are confirmed on install day."];
+    : ["Lights put up on the lines listed above.", "You keep the lights after the season.", "We come back and take them down. Takedown is included in the price.",
+       `Next year: we store your lights for you and hang them again for ${money(nextYearPrice(st.level))} (install and takedown only).`, "Final feet are confirmed on install day."];
   inc.forEach(t => { doc.text("•  " + t, M, y); y += 15; });
   y += 26; doc.setDrawColor(150, 160, 155);
   doc.line(M, y, M + 220, y); doc.line(M + 260, y, M + 400, y);
@@ -962,6 +925,7 @@ function quoteText(lead){
   if (p.walk) parts.push(`Walkway (${p.walkFt} ft): ${money(p.walk)}`);
   if (p.minAdd) parts.push(`Minimum job charge: +${money(p.minAdd)}`);
   parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
+  if (p.nextYear) parts.push(`Next year: we store your lights for you and hang them again for ${money(p.nextYear)}.`);
   parts.push((p.returning ? "You already own the lights; this covers install and takedown." : "You keep the lights, and takedown is included.") + " Final feet confirmed on install day. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
   return parts.join("\n");
 }
@@ -985,7 +949,7 @@ function saveLead(sent){
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
-    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
+    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, nextYear: st.returning ? 0 : nextYearPrice(st.level), yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
       walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
   const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
@@ -1185,12 +1149,13 @@ $("pend-add").onclick = () => {
 
 // ---------- tabs ----------
 function showTab(t){
-  for (const v of ["quote","leads","stock"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; $("tab-" + v).setAttribute("aria-selected", t === v); }
+  for (const v of ["quote","leads","stock"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; const tb = $("tab-" + v); if (tb) tb.setAttribute("aria-selected", t === v || (t === "stock" && v === "quote")); }
   if (t === "stock") renderStock();
   $("bar").hidden = t !== "quote";
   if (t === "quote") setTimeout(() => map.invalidateSize(), 50);
 }
-$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads"); $("tab-stock").onclick = () => showTab("stock");
+$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads");
+$("open-stock").onclick = () => showTab("stock");
 
 renderLeads(); renderStock(); update();
 </script>
