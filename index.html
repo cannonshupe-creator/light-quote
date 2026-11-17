@@ -35,7 +35,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
 main{max-width:560px;margin:0 auto;display:grid;gap:14px}
 h1{font:700 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
 h2{font:700 15px/1.2 var(--display);margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
 .tabs button{border:0;background:none;color:var(--muted);font:600 14px var(--body);padding:8px 10px;border-radius:7px}
 .tabs button[aria-selected="true"]{background:var(--pine);color:var(--pine-ink)}
@@ -109,6 +109,15 @@ main{padding-bottom:84px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
 .filebtn{display:inline-block;text-align:center}
+#dmap{height:320px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.door-addr{display:grid;gap:2px}
+.door-addr b{font:700 24px/1.15 var(--display);overflow-wrap:anywhere}
+.outs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.outs button{min-height:64px;border-radius:12px;border:2px solid var(--c);background:var(--surface);color:var(--ink);font:700 16px var(--body)}
+.outs button:active{background:var(--c);color:#fff}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:4px;vertical-align:-1px}
+.muted.warn{color:var(--warn);font-weight:600}
 </style>
 </head>
 <body>
@@ -118,6 +127,7 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="tabs" role="tablist">
       <button id="tab-quote" role="tab" aria-selected="true">Quote</button>
       <button id="tab-leads" role="tab" aria-selected="false">Leads <span id="due-count"></span></button>
+      <button id="tab-doors" role="tab" aria-selected="false">Doors</button>
     </div>
   </div>
 
@@ -313,6 +323,37 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
       <p class="muted" id="backup-note"></p>
       <p class="fine">Quotes are saved on this phone. Back up after a day of knocking: email or text the file to yourself.</p>
+      <p class="muted" id="sync-status-l"></p>
+    </section>
+  </div>
+
+  <div id="view-doors" style="display:none;gap:14px">
+    <section class="card">
+      <h2>This door</h2>
+      <label class="f" id="who-row" hidden>Your first name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
+      <div class="door-addr"><b id="d-addr">Finding where you are…</b><span class="muted" id="d-sub"></span></div>
+      <div class="row"><button class="btn small" id="d-mine" type="button" hidden>Use my location</button></div>
+      <div class="outs">
+        <button type="button" data-door="none" style="--c:#8a978f">No answer</button>
+        <button type="button" data-door="no" style="--c:#c0392b">Not interested</button>
+        <button type="button" data-door="lights" style="--c:#2f6fd6">Has lights</button>
+        <button type="button" data-door="sale" style="--c:#2e9e5b">Sale</button>
+      </div>
+      <details class="mini"><summary>Wrong house? Type it</summary>
+        <div class="row"><input id="d-fix" type="text" placeholder="House number and street" autocomplete="off"><button class="btn small" id="d-fix-go" type="button">Use</button></div></details>
+      <div id="dmap"></div>
+      <div class="legend"><span><i style="background:#8a978f"></i>No answer</span><span><i style="background:#c0392b"></i>Not interested</span><span><i style="background:#2f6fd6"></i>Has lights</span><span><i style="background:#2e9e5b"></i>Sale</span></div>
+      <p class="fine">Tap a dot to change that door. Tap a house on the map to pick it. No answer never replaces another answer.</p>
+    </section>
+    <section class="card">
+      <h2>Today</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>Who</th><th>Doors</th><th>No ans.</th><th>No</th><th>Lights</th><th>Sales</th></tr></thead><tbody id="d-today"></tbody></table></div>
+    </section>
+    <section class="card">
+      <h2>Team sync</h2>
+      <p class="muted" id="sync-status"></p>
+      <div class="row"><button class="btn small primary" id="sync-now" type="button">Sync now</button><button class="btn small" id="invite" type="button" hidden>Invite a teammate</button></div>
+      <p class="fine">Doors and quotes save on this phone first, then go to the team's private sheet when there's signal.</p>
     </section>
   </div>
 </main>
@@ -797,7 +838,7 @@ function update(){
 // settings
 const SKEYS = Object.keys(DEFAULTS);
 SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener("input", () => {
-  if (k === "seller"){ S.seller = el.value; store.set("lq-settings", S); return; }
+  if (k === "seller"){ S.seller = el.value; store.set("lq-settings", S); if (typeof showWho === "function") showWho(); return; }
   const v = parseFloat(el.value);
   if (v > 0 || ((k === "overhang" || k === "minjob") && v >= 0) || (k === "fix" && !isNaN(v) && v > -50 && v < 50)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
 $("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
@@ -964,12 +1005,12 @@ function saveLead(sent){
   if (!p.total){ toast("Measure the house first"); return null; }
   if (sent && !phone){ toast("Add their phone number"); return null; }
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
-  const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
+  const lead = { id: rid(), created: Date.now(), seller: S.seller || "", name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
     quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, nextYear: st.returning ? 0 : nextYearPrice(st.level), yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:firstPay(p.total),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
       walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
-  const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
+  const all = leads(); all.unshift(lead); saveLeads(all); renderLeads();
   setTimeout(() => { $("c-name").value = ""; $("c-phone").value = ""; $("c-consent").checked = false; }, 1500);
   return lead;
 }
@@ -988,7 +1029,7 @@ function renderLeads(){
       <div class="row"></div>`;
     el.querySelector(".who span").textContent = (l.name || "No name") + " · " + money(l.quote.total);
     el.querySelector(".pill").textContent = showDue ? "Text today" : (d ? "Next " + d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) : status);
-    el.querySelector(".muted").textContent = [l.address, l.phone, new Date(l.created).toLocaleDateString("en-US",{month:"short",day:"numeric"})].filter(Boolean).join(" · ");
+    el.querySelector(".muted").textContent = [l.address, l.phone, new Date(l.created).toLocaleDateString("en-US",{month:"short",day:"numeric"}), team() && l.seller ? "by " + l.seller : ""].filter(Boolean).join(" · ");
     const row = el.querySelector(".row");
     if (showDue && l.phone){
       const a = document.createElement("a"); a.className = "btn small primary"; a.textContent = "Send follow-up " + (l.touches+1);
@@ -1009,7 +1050,7 @@ function renderLeads(){
   if (!all.length) allBox.innerHTML = '<p class="muted">Saved quotes show up here.</p>';
   all.forEach(l => allBox.appendChild(card(l, false)));
 }
-function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); store.set("lq-leads", all); renderLeads(); renderStock(); } }
+function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); saveLeads(all); renderLeads(); renderStock(); } }
 // Back up everything (leads, stock, settings) as one file through the share sheet: email or text it to yourself.
 function backupData(){ return {app:"light-quote", version:1, saved: new Date().toISOString(), leads: leads(), stock: stockData(), settings: S}; }
 $("backup").onclick = async () => {
@@ -1026,7 +1067,7 @@ $("restore-in").addEventListener("change", async ev => {
     if (d.app !== "light-quote") throw new Error("not a Light Quote backup");
     const mine = leads(), ids = new Set(mine.map(l => l.id));
     const addL = (d.leads || []).filter(l => !ids.has(l.id));
-    store.set("lq-leads", mine.concat(addL).sort((a, b) => b.created - a.created));
+    saveLeads(mine.concat(addL).sort((a, b) => b.created - a.created));
     const sd = stockData(), bids = new Set(sd.buys.map(b => b.id));
     const addB = ((d.stock && d.stock.buys) || []).filter(b => !bids.has(b.id));
     sd.buys = sd.buys.concat(addB); store.set("lq-stock", sd);
@@ -1164,14 +1205,283 @@ $("pend-add").onclick = () => {
   pending = null; $("pending").hidden = true; renderStock();
 };
 
+// ---------- team sync + door tracker (built 2026-11-17 on his yes; council #5) ----------
+// Leads and doors save on this phone first (instant, works with no signal), then go up to the team's private
+// Google Sheet in batches. Every change is an event with its own id, so a retry never doubles anything.
+// The page never holds customer data in its code: the sheet's address and team code come from the invite link.
+const TEAM_KEY = "lq-team", OUTBOX = "lq-outbox", SHADOW = "lq-lead-shadow", DOORS = "lq-doors", SEQK = "lq-seq";
+const team = () => store.get(TEAM_KEY, null);
+const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const OUT = {
+  none:   {label:"No answer",      color:"#8a978f"},
+  no:     {label:"Not interested", color:"#c0392b"},
+  lights: {label:"Has lights",     color:"#2f6fd6"},
+  sale:   {label:"Sale",           color:"#2e9e5b"}
+};
+const okSyncUrl = u => /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u)
+  || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^http:\/\/127\.0\.0\.1:\d+\/$/.test(u));
+// Invite link: the page address + #join=<sheet address and team code>. The part after # never leaves the phone.
+// (also on hashchange: tapping the link while the page is already open only changes the part after #)
+let joinedNow = false;
+function joinFromLink(){
+  const m = location.hash.match(/join=([A-Za-z0-9_-]+)/); if (!m) return;
+  try{
+    const j = JSON.parse(atob(m[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (j.u && j.c && okSyncUrl(j.u)){ store.set(TEAM_KEY, {url:j.u, code:j.c}); joinedNow = true; setTimeout(() => toast("Joined the team. Leads and doors now sync."), 600); }
+  }catch(e){}
+  history.replaceState(null, "", location.pathname + location.search);
+}
+joinFromLink();
+window.addEventListener("hashchange", () => { joinFromLink(); if (joinedNow && team()){ queueLeadChanges(leads()); syncStatus(); syncNow(); } });
+function inviteLink(){
+  const t = team(); if (!t) return "";
+  const b = btoa(JSON.stringify({u:t.url, c:t.code})).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return location.origin + location.pathname + "#join=" + b;
+}
+
+// ----- the outbox -----
+function enqueue(kind, id, data){
+  const ob = store.get(OUTBOX, []);
+  ob.push({op: rid(), kind, id, data, seller: S.seller || "", ts: Date.now()});
+  store.set(OUTBOX, ob); scheduleSync(1500); syncStatus();
+}
+// Every write to the leads list goes through here, so any change (new quote, status, follow-up) is queued.
+function saveLeads(all){ store.set("lq-leads", all); if (team()) queueLeadChanges(all); }
+function queueLeadChanges(all){
+  if (!S.seller) return;   // wait until this phone knows whose quotes these are
+  const sh = store.get(SHADOW, {}); let n = 0;
+  for (const l of all){
+    if (!l.seller && !(l.id in sh)) l.seller = S.seller;   // made on this phone before sync: this seller's own
+    const j = JSON.stringify(l);
+    if (sh[l.id] !== j){ sh[l.id] = j; enqueue("lead", l.id, l); n++; }
+  }
+  if (n){ store.set("lq-leads", all); store.set(SHADOW, sh); }
+}
+let syncing = false, syncTimer = null, syncErr = "";
+function scheduleSync(ms){ clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); }
+async function syncNow(){
+  const t = team(); if (!t || syncing) return;
+  syncing = true; syncStatus();
+  const batch = store.get(OUTBOX, []).slice(0, 200);
+  try{
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
+    const r = await fetch(t.url, {method:"POST", body: JSON.stringify({code:t.code, since: store.get(SEQK, 0), events: batch}), signal: ctl.signal});
+    clearTimeout(timer);
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "sync failed");
+    const done = new Set(j.applied || []);
+    store.set(OUTBOX, store.get(OUTBOX, []).filter(e => !done.has(e.op)));
+    if (j.seq < store.get(SEQK, 0)) store.set(SEQK, 0);   // the sheet was reset: pull it all next time
+    mergeRemote(j); store.set(SEQK, j.seq); fillAddresses().catch(() => {}); store.set("lq-lastsync", Date.now()); syncErr = "";
+    syncing = false;
+    if (store.get(OUTBOX, []).length) scheduleSync(300);
+  }catch(e){
+    syncing = false;
+    syncErr = e.message === "wrong team code" ? "The team code changed. Ask for a new invite link." : "No signal. It sends when you have signal again.";
+  }
+  syncStatus();
+}
+function mergeRemote(j){
+  const pend = store.get(OUTBOX, []);
+  const pendLead = new Set(pend.filter(e => e.kind === "lead").map(e => e.id)), pendDoor = new Set(pend.filter(e => e.kind === "door").map(e => e.id));
+  if (j.leads && j.leads.length){
+    const byId = new Map(leads().map(l => [l.id, l])), sh = store.get(SHADOW, {});
+    for (const r of j.leads){ if (pendLead.has(r.id)) continue; byId.set(r.id, r); sh[r.id] = JSON.stringify(r); }
+    store.set("lq-leads", [...byId.values()].sort((a, b) => b.created - a.created)); store.set(SHADOW, sh);
+    renderLeads(); renderStock();
+  }
+  if (j.doors && j.doors.length){
+    const ds = store.get(DOORS, {});
+    for (const r of j.doors){
+      for (const a of (r.aliases || [])) if (a !== r.id && !pendDoor.has(a)) delete ds[a];
+      if (!pendDoor.has(r.id)) ds[r.id] = r;
+    }
+    store.set(DOORS, ds); renderDoors();
+  }
+}
+function syncStatus(){
+  const t = team(), n = store.get(OUTBOX, []).length, last = store.get("lq-lastsync", 0);
+  let msg;
+  if (!t) msg = "Team sync is off on this phone. Open the invite link to turn it on.";
+  else if (syncing) msg = "Syncing…";
+  else if (n) msg = `${n} waiting to send. ` + (syncErr || "");
+  else if (syncErr) msg = syncErr;
+  else msg = last ? "All synced · " + new Date(last).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"}) : "Not synced yet.";
+  for (const id of ["sync-status", "sync-status-l"]){ const el = $(id); if (el){ el.textContent = msg; el.classList.toggle("warn", !!(t && (n || syncErr) && !syncing)); } }
+  $("invite").hidden = !t;
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
+setInterval(() => { if (document.visibilityState === "visible") syncNow(); }, 60000);
+$("sync-now").onclick = () => { if (!team()){ toast("Open the invite link on this phone first"); return; } syncNow(); };
+$("invite").onclick = async () => {
+  const link = inviteLink(), text = "Light Quote team link. Open it on your phone (in Safari), then Add to Home Screen: " + link;
+  try{ if (navigator.share){ await navigator.share({title:"Light Quote team", text}); return; } }catch(e){ return; }
+  try{ await navigator.clipboard.writeText(text); toast("Invite link copied"); }catch(e){ toast("Couldn't copy on this phone"); }
+};
+
+// ----- doors -----
+const doorsAll = () => store.get(DOORS, {});
+const addrKey = a => normStreet(a).join(" ");
+// address points for the door map: one zoom-14 tile at a time, decoded once and kept (fast after the first tap)
+const addrTiles = new Map();
+async function addrPoints(lat, lon){
+  if (!overtureLib) await overtureBuildings.loadLib();
+  if (!addrArchive) addrArchive = new overtureLib.pm.PMTiles(OVERTURE_ADDR);
+  const z = 14, n = 2**z, x = Math.floor((lon+180)/360*n), y = Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n), k = x + "/" + y;
+  if (addrTiles.has(k)) return addrTiles.get(k);
+  const t = await addrArchive.getZxy(z, x, y), pts = [];
+  if (t && t.data){
+    const vt = new overtureLib.VectorTile(new overtureLib.Pbf(new Uint8Array(t.data)));
+    for (const name in vt.layers){ const lyr = vt.layers[name];
+      for (let i = 0; i < lyr.length; i++){ const f = lyr.feature(i), p = f.properties; if (!p.number || !p.street) continue;
+        const c = f.toGeoJSON(x, y, z).geometry.coordinates;
+        pts.push({lat:c[1], lon:c[0], number:String(p.number), street:String(p.street).toLowerCase().replace(/\b\w/g, m => m.toUpperCase())});
+      } }
+  }
+  addrTiles.set(k, pts); return pts;
+}
+async function snapAddress(lat, lon){
+  const pts = await addrPoints(lat, lon); let best = null;
+  for (const p of pts){ const d = ftBetween([lat, lon], [p.lat, p.lon]); if (d < 200 && (!best || d < best.d)) best = {...p, d}; }
+  if (!best) return null;
+  const address = best.number + " " + best.street;
+  return {address, addrKey: addrKey(address), lat: best.lat, lon: best.lon, number: best.number, street: best.street};
+}
+let here = null, picked = null, watchId = null, fixBusy = false, firstFix = true;
+const dmap = L.map("dmap", {zoomControl:true}).setView([33.85,-117.75], 9);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:20, maxNativeZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Addresses © <a href="https://overturemaps.org">Overture Maps</a>'}).addTo(dmap);
+const dlayer = L.layerGroup().addTo(dmap);
+let meDot = null, pickDot = null;
+function startGPS(){
+  if (watchId !== null || !navigator.geolocation) return;
+  watchId = navigator.geolocation.watchPosition(onFix, () => { if (!here) $("d-sub").textContent = "Location is off. Tap the house on the map instead."; },
+    {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+}
+function stopGPS(){ if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; } }
+async function onFix(pos){
+  const {latitude:lat, longitude:lon, accuracy} = pos.coords;
+  here = Object.assign(here && here.glat != null && ftBetween([here.glat, here.glon], [lat, lon]) < 15 ? here : {}, {glat:lat, glon:lon, acc:accuracy});
+  if (!meDot) meDot = L.circleMarker([lat, lon], {radius:7, color:"#fff", weight:3, fillColor:"#17231d", fillOpacity:1, interactive:false}).addTo(dmap);
+  else meDot.setLatLng([lat, lon]);
+  if (firstFix){ firstFix = false; dmap.setView([lat, lon], 19); }
+  if (!fixBusy){
+    fixBusy = true;
+    try{ const a = await snapAddress(lat, lon); if (a) Object.assign(here, a); else { here.address = ""; here.addrKey = ""; } }catch(e){}
+    fixBusy = false;
+  }
+  showTarget();
+}
+function target(){
+  if (picked) return picked;
+  if (!here) return null;
+  return {address: here.address || "", addrKey: here.addrKey || "", lat: here.lat ?? here.glat, lon: here.lon ?? here.glon, number: here.number, street: here.street};
+}
+function showTarget(){
+  const t = target(), ds = doorsAll();
+  const d = t && (t.id ? ds[t.id] : (t.addrKey && Object.values(ds).find(x => x.addrKey === t.addrKey)));
+  $("d-addr").textContent = t ? (t.address || "Address not found yet") : "Finding where you are…";
+  const bits = [];
+  if (picked) bits.push("Picked on the map");
+  else if (here && here.acc) bits.push("Your location, ±" + Math.round(here.acc * 3.28084) + " ft");
+  if (d) bits.push(`Last: ${OUT[d.outcome]?.label || d.outcome}${d.seller ? " (" + d.seller + ")" : ""}`);
+  $("d-sub").textContent = bits.join(" · ");
+  $("d-mine").hidden = !picked;
+  if (pickDot){ dmap.removeLayer(pickDot); pickDot = null; }
+  if (picked && picked.lat != null) pickDot = L.circleMarker([picked.lat, picked.lon], {radius:13, color:"#e8a317", weight:3, fill:false, interactive:false}).addTo(dmap);
+}
+$("d-mine").onclick = () => { picked = null; showTarget(); if (here && here.glat) dmap.setView([here.glat, here.glon], 19); };
+// tap a dot = that door; tap anywhere else = the nearest house to the tap
+dmap.on("click", async ev => {
+  const a = await snapAddress(ev.latlng.lat, ev.latlng.lng).catch(() => null);
+  if (!a){ toast("No house address there"); return; }
+  picked = a; showTarget();
+});
+$("d-fix-go").onclick = () => {
+  const v = $("d-fix").value.trim(); if (!v) return;
+  const t = target() || {};
+  picked = {address: v, addrKey: addrKey(v), lat: t.lat ?? null, lon: t.lon ?? null};
+  $("d-fix").value = ""; showTarget(); toast("Using " + v);
+};
+document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => knock(b.dataset.door));
+function knock(outcome){
+  if (!S.seller){ toast("Type your first name first"); $("who").focus(); return; }
+  const t = target();
+  if (!t || t.lat == null){ toast("Waiting for your location. Or tap the house on the map."); return; }
+  const ds = doorsAll();
+  let d = t.id ? ds[t.id] : (t.addrKey && Object.values(ds).find(x => x.addrKey === t.addrKey));
+  if (!d) d = {id: rid(), address: t.address || "", addrKey: t.addrKey || "", lat: t.lat, lon: t.lon, outcome: "", knocks: 0};
+  const kept = outcome === "none" && d.outcome && d.outcome !== "none";
+  if (!kept) d.outcome = outcome;
+  d.knocks = (d.knocks || 0) + 1; d.seller = S.seller; d.updated = Date.now();
+  ds[d.id] = d; store.set(DOORS, ds);
+  enqueue("door", d.id, {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome});
+  renderDoors();
+  toast(kept ? `Kept "${OUT[d.outcome].label}" (No answer doesn't replace it)` : `${OUT[outcome].label}: ${d.address || "saved"}`);
+  picked = null; showTarget();
+  if (outcome === "sale") startQuote(d);
+}
+// Sale: open the quote with the house already found
+function startQuote(d){
+  showTab("quote");
+  const m = (d.address || "").match(/^(\S+)\s+(.+)$/);
+  $("addr").value = d.address || "";
+  pick({lat: d.lat, lon: d.lon, display_name: d.address || "", address: m ? {house_number: m[1], road: m[2]} : {}});
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+// doors logged with no signal get their address once the address tile loads
+async function fillAddresses(){
+  const ds = doorsAll();
+  for (const d of Object.values(ds)){
+    if (d.address || d.lat == null) continue;
+    const a = await snapAddress(d.lat, d.lon).catch(() => null); if (!a) continue;
+    d.address = a.address; d.addrKey = a.addrKey; d.lat = a.lat; d.lon = a.lon; ds[d.id] = d;
+    enqueue("door", d.id, {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, fill:true});
+  }
+  store.set(DOORS, ds);
+}
+function renderDoors(){
+  dlayer.clearLayers();
+  const ds = Object.values(doorsAll());
+  for (const d of ds){
+    if (d.lat == null) continue;
+    L.circleMarker([d.lat, d.lon], {radius:9, color:"#ffffff", weight:2, fillColor:(OUT[d.outcome] || OUT.none).color, fillOpacity:1, bubblingMouseEvents:false})
+      .on("click", () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); })
+      .addTo(dlayer);
+  }
+  // today, per seller (a door counts for whoever touched it last)
+  const start = new Date(); start.setHours(0,0,0,0);
+  const rows = {};
+  for (const d of ds){
+    if (!d.updated || d.updated < +start) continue;
+    const who = d.seller || "?"; rows[who] = rows[who] || {doors:0, none:0, no:0, lights:0, sale:0};
+    rows[who].doors++; rows[who][d.outcome] = (rows[who][d.outcome] || 0) + 1;
+  }
+  const names = Object.keys(rows).sort();
+  $("d-today").innerHTML = names.length ? names.map(n => { const r = rows[n]; return `<tr><td></td><td>${r.doors}</td><td>${r.none}</td><td>${r.no}</td><td>${r.lights}</td><td>${r.sale}</td></tr>`; }).join("")
+    : '<tr><td class="muted" colspan="6" style="text-align:left">No doors yet today.</td></tr>';
+  [...$("d-today").querySelectorAll("tr")].forEach((tr, i) => { if (names[i]) tr.firstChild.textContent = names[i]; });
+  showTarget();
+}
+// your first name: tags every door and quote, so the team sees who did what
+function showWho(){ $("who-row").hidden = !!S.seller; $("who").value = S.seller || ""; }
+$("who").addEventListener("change", () => {
+  const v = $("who").value.trim(); if (!v) return;
+  S.seller = v; store.set("lq-settings", S); $("s-seller").value = v; showWho();
+  if (team()) queueLeadChanges(leads());
+  toast("Hi " + v);
+});
+showWho(); renderDoors(); syncStatus();
+if (team()){ queueLeadChanges(leads()); syncNow(); }
+
 // ---------- tabs ----------
 function showTab(t){
-  for (const v of ["quote","leads","stock"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; const tb = $("tab-" + v); if (tb) tb.setAttribute("aria-selected", t === v || (t === "stock" && v === "quote")); }
+  for (const v of ["quote","leads","stock","doors"]){ $("view-" + v).style.display = t === v ? "grid" : "none"; const tb = $("tab-" + v); if (tb) tb.setAttribute("aria-selected", t === v || (t === "stock" && v === "quote")); }
   if (t === "stock") renderStock();
+  if (t === "doors"){ startGPS(); showWho(); renderDoors(); setTimeout(() => dmap.invalidateSize(), 50); fillAddresses().catch(() => {}); } else stopGPS();
   $("bar").hidden = t !== "quote";
   if (t === "quote") setTimeout(() => map.invalidateSize(), 50);
 }
-$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads");
+$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads"); $("tab-doors").onclick = () => showTab("doors");
 $("open-stock").onclick = () => showTab("stock");
 
 renderLeads(); renderStock(); update();
