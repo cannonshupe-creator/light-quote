@@ -262,7 +262,7 @@ const PRICES = {
 };
 const STRANDS = {trunk:1.5, canS:6, canM:9, canL:12.5};
 const PEAK = 1.12;             // slanted edges of a gable over a wall, about a 6/12 roof
-const CAP = 1000, NEAR = 950;  // unlicensed solo limit (CSLB minor work), warn early
+const CAP = 1000;              // unlicensed solo limit (CSLB minor work); shown only in Our numbers
 const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
   peakMode:false, ridgeOn:false, ridge:0, address:"", lat:null, lon:null, road:"" };
 
@@ -633,11 +633,8 @@ function update(){
   $("q-total").textContent = money(p.total);
   const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
   // running total bar and the $1,000 limit
-  const bar = $("bar"); bar.classList.toggle("near", p.total >= NEAR && p.total <= CAP); bar.classList.toggle("over", p.total > CAP);
+  // his call 11/16 8:40 PM: no blocking or warning colors over $1,000; the note stays private in Our numbers
   $("bar-total").textContent = money(p.total);
-  $("bar-note").textContent = p.total > CAP ? "Over $1,000. Trim it to send" : (p.total >= NEAR ? "Close to $1,000" : "Total");
-  $("send-quote").disabled = $("save-only").disabled = p.total > CAP;
-  $("send-note").textContent = p.total > CAP ? "Over $1,000. Drop something or switch to Low to send it." : "Opens your Messages app with the quote written out. You press send.";
   // private numbers
   const lo = priceAt(0), hi = priceAt(2), c = costs(p);
   const ph = v => c.hours ? (v - c.materials)/c.hours : 0;
@@ -688,7 +685,6 @@ function saveLead(sent){
   const name = $("c-name").value.trim(), phone = $("c-phone").value.trim();
   const p = priceAt(st.level);
   if (!p.total){ toast("Measure the house first"); return null; }
-  if (p.total > CAP){ toast("Over $1,000. Trim it first"); return null; }
   if (sent && !phone){ toast("Add their phone number"); return null; }
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
