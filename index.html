@@ -192,8 +192,8 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="line" id="q-min-row" hidden><span>Minimum job charge</span><span id="q-min">$0</span></div>
         <div class="total"><span>Total</span><b id="q-total">$0</b></div>
         <div class="halves">
-          <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
-          <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
+          <div><span class="fine">After setup (70%)</span><b id="q-half1">$0</b></div>
+          <div><span class="fine">At takedown (30%)</span><b id="q-half2">$0</b></div>
         </div>
         <p class="fine" id="q-next" hidden></p>
         <p class="fine" id="q-fine">You keep the lights. Takedown is included. Final feet confirmed on install day.</p>
@@ -342,6 +342,9 @@ const PRICES = {
 const STRANDS = {trunk:1.5, canS:6, canM:9, canL:12.5};
 const PEAKS = 0.12;            // slanted gable edges run ~12% longer than the walls under them (6/12 roof)
 const RIDGE_EXTRA = 1;         // ridge is priced $1/ft above the gutter rate: it means walking the roof
+// His call 11/17: 70% after setup, 30% at takedown (was 50/50). Setup is done before the 70% is due.
+const SPLIT = 0.70;
+function firstPay(t){ return Math.ceil(t * SPLIT); }
 const CAP = 1000;              // unlicensed solo limit (CSLB minor work); shown only in Our numbers
 const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
   gutters:true, peaks:false, ridgeOn:false, ridge:0, lower:0, address:"", lat:null, lon:null, road:"", dctx:null };
@@ -761,7 +764,7 @@ function update(){
   const ny = st.returning ? 0 : nextYearPrice(st.level);
   $("q-next").hidden = !ny || !p.total; $("q-next").textContent = `Next year: we store your lights for you and hang them again for ${money(ny)} (install and takedown only).`;
   $("q-total").textContent = money(p.total);
-  const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
+  const h1 = firstPay(p.total); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
   // running total bar and the $1,000 limit
   // his call 11/16 8:40 PM: no blocking or warning colors over $1,000; the note stays private in Our numbers
   $("bar-total").textContent = money(p.total);
@@ -893,9 +896,9 @@ $("pdf-btn").onclick = async () => {
   for (const [label, amt] of rows){ doc.text(doc.splitTextToSize(label, colR - tx - 80), tx, ty + 12); doc.text(money(amt), colR, ty + 12, {align:"right"}); ty += 24; }
   doc.setDrawColor(217, 224, 219); doc.setLineWidth(1); doc.line(tx, ty + 2, colR, ty + 2); ty += 22;
   doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Total", tx, ty); doc.text(money(p.total), colR, ty, {align:"right"}); ty += 22;
-  const h1 = Math.ceil(p.total / 2);
+  const h1 = firstPay(p.total);
   doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(93, 107, 99);
-  doc.text(`Half after setup: ${money(h1)}`, tx, ty); ty += 15; doc.text(`Half at takedown: ${money(p.total - h1)}`, tx, ty); ty += 15;
+  doc.text(`70% after setup: ${money(h1)}`, tx, ty); ty += 15; doc.text(`30% at takedown: ${money(p.total - h1)}`, tx, ty); ty += 15;
   y = Math.max(y, ty) + 20;
   doc.setTextColor(23, 35, 29); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.text("What's included", M, y); y += 16;
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
@@ -924,7 +927,8 @@ function quoteText(lead){
   if (p.yard) parts.push(`Trees and bushes (${p.yardLabel}): ${money(p.yard)}`);
   if (p.walk) parts.push(`Walkway (${p.walkFt} ft): ${money(p.walk)}`);
   if (p.minAdd) parts.push(`Minimum job charge: +${money(p.minAdd)}`);
-  parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
+  const h1 = firstPay(p.total);   // from the total, so leads saved under the old 50/50 text the new split
+  parts.push(`Total ${money(p.total)}: 70% (${money(h1)}) after setup, 30% (${money(p.total - h1)}) at takedown.`);
   if (p.nextYear) parts.push(`Next year: we store your lights for you and hang them again for ${money(p.nextYear)}.`);
   parts.push((p.returning ? "You already own the lights; this covers install and takedown." : "You keep the lights, and takedown is included.") + " Final feet confirmed on install day. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
   return parts.join("\n");
@@ -949,7 +953,7 @@ function saveLead(sent){
   if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
   const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
     consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
-    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, nextYear: st.returning ? 0 : nextYearPrice(st.level), yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:Math.ceil(p.total/2),
+    quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, nextYear: st.returning ? 0 : nextYearPrice(st.level), yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:firstPay(p.total),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
       walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
   const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
