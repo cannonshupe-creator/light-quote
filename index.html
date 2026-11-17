@@ -6,6 +6,10 @@
 <title>Light Quote</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Light Quote">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f5a3d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -1747,7 +1751,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117124333";
+const APP_VERSION = "20261117132135";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
