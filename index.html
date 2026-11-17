@@ -247,6 +247,7 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
         <label class="f">Net cost each<input id="s-costnet" type="number" step="1" inputmode="decimal"></label>
         <label class="f">Mini strand cost each<input id="s-coststrand" type="number" step="0.5" inputmode="decimal"></label>
         <label class="f">Walkway cost per ft<input id="s-costwalk" type="number" step="0.05" inputmode="decimal"></label>
+        <label class="f">Timer per house<input id="s-costtimer" type="number" step="1" inputmode="decimal"></label>
         <label class="f">Roof install, ft per hour<input id="s-pace" type="number" step="5" inputmode="numeric"></label>
         <label class="f">Roof takedown, ft per hour<input id="s-downpace" type="number" step="5" inputmode="numeric"></label>
         <label class="f">Walkway install, ft per hour<input id="s-walkpace" type="number" step="5" inputmode="numeric"></label>
@@ -280,7 +281,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:1.65, pace:40, downpace:90, walkpace:100, netmin:10, strandmin:10, overhang:5};
+const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, costwalk:1.65, costtimer:22, pace:40, downpace:90, walkpace:100, netmin:10, strandmin:10, overhang:5};
 const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
 // Prices from the 11/16 council (his ask: ground work, bushes and trees cheaper). [low, standard, high]
 const PRICES = {
@@ -658,13 +659,16 @@ function priceAt(lvl){
 }
 function costs(p){
   const strands = st.trunk*STRANDS.trunk + st.canS*STRANDS.canS + st.canM*STRANDS.canM + st.canL*STRANDS.canL;
-  const materials = (p.feet + p.ridgeFt)*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk;
+  // his call 11/16: every house keeps its own timer (the pack has one), so each job carries one
+  const timer = p.total > 0 ? S.costtimer : 0;
+  const materials = (p.feet + p.ridgeFt)*S.costft + p.nets*S.costnet + strands*S.coststrand + p.walkFt*S.costwalk + timer;
   const install = p.feet/S.pace + p.ridgeFt/(S.pace*0.6) + p.nets*S.netmin/60 + strands*S.strandmin/60 + p.walkFt/S.walkpace;
   const down = p.feet/S.downpace + p.ridgeFt/(S.downpace*0.6) + p.nets*(S.netmin/2)/60 + strands*(S.strandmin/2)/60 + p.walkFt/(S.walkpace*2);
   const parts = [["Roofline lights", (p.feet + p.ridgeFt)*S.costft, `${p.feet + p.ridgeFt} ft × $${S.costft.toFixed(2)}`],
     ["Bush nets", p.nets*S.costnet, `${p.nets} × $${S.costnet}`],
     ["Tree lights", strands*S.coststrand, `${strands} strands × $${S.coststrand}`],
-    ["Walkway lights", p.walkFt*S.costwalk, `${p.walkFt} ft × $${S.costwalk.toFixed(2)}`]].filter(r => r[1] > 0);
+    ["Walkway lights", p.walkFt*S.costwalk, `${p.walkFt} ft × $${S.costwalk.toFixed(2)}`],
+    ["Timer", timer, "1 per house"]].filter(r => r[1] > 0);
   return {materials, install, down, hours: install + down, parts};
 }
 function yardLabel(){
