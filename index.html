@@ -109,11 +109,20 @@ main{padding-bottom:84px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
 .filebtn{display:inline-block;text-align:center}
-#dmap{height:320px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+#dmap{height:420px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+#view-doors.bigmap #dmap{height:78vh}
 .door-addr{display:grid;gap:2px}
-.door-addr b{font:700 24px/1.15 var(--display);overflow-wrap:anywhere}
+.door-addr b{font:700 32px/1.1 var(--display);overflow-wrap:anywhere}
 .outs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.outs button{min-height:64px;border-radius:12px;border:2px solid var(--c);background:var(--surface);color:var(--ink);font:700 16px var(--body)}
+.outs button{min-height:84px;border-radius:14px;border:3px solid var(--c);background:var(--surface);color:var(--ink);font:700 19px var(--body)}
+.outs .wide{grid-column:1/-1}
+.later-box{border:2px solid #e8a317;border-radius:12px;padding:12px;display:grid;gap:10px;background:var(--bulb-soft)}
+.later-box .chip{padding:14px 18px;font-size:16px}
+details.comeback>summary{font:700 17px var(--display)}
+details.comeback.due>summary{color:var(--warn)}
+.cb{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:500 15px var(--body);display:grid;gap:2px}
+.cb b{font-weight:700}
+.cb.due{border-color:var(--warn);background:var(--warn-soft)}
 .outs button:active{background:var(--c);color:#fff}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:4px;vertical-align:-1px}
@@ -328,26 +337,36 @@ details.mini>summary{cursor:pointer;color:var(--muted);font-size:13px}
   </div>
 
   <div id="view-doors" style="display:none;gap:14px">
+    <details class="card comeback" id="cb-card"><summary id="cb-sum">Come back</summary><div id="cb-list" class="results"></div></details>
     <section class="card">
-      <h2>This door</h2>
-      <label class="f" id="who-row" hidden>Your first name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
+      <div class="row" style="justify-content:space-between"><h2>This door</h2><span class="muted" id="d-knocker"></span></div>
+      <label class="f" id="who-row" hidden>Knocker's name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
       <div class="door-addr"><b id="d-addr">Finding where you are…</b><span class="muted" id="d-sub"></span></div>
       <div class="row"><button class="btn small" id="d-mine" type="button" hidden>Use my location</button></div>
       <div class="outs">
         <button type="button" data-door="none" style="--c:#8a978f">No answer</button>
         <button type="button" data-door="no" style="--c:#c0392b">Not interested</button>
         <button type="button" data-door="lights" style="--c:#2f6fd6">Has lights</button>
-        <button type="button" data-door="sale" style="--c:#2e9e5b">Sale</button>
+        <button type="button" data-door="later" style="--c:#e8a317">Come back later</button>
+        <button type="button" data-door="sale" class="wide" style="--c:#2e9e5b">Sale</button>
+      </div>
+      <div class="later-box" id="later-box" hidden>
+        <b id="later-addr">Come back later</b>
+        <div class="q"><span class="qlabel">When?</span>
+          <div class="chips" id="later-when"><button type="button" class="chip" data-when="tonight" aria-pressed="false">Tonight</button><button type="button" class="chip" data-when="tomorrow" aria-pressed="false">Tomorrow</button><button type="button" class="chip" data-when="weekend" aria-pressed="false">Weekend</button></div></div>
+        <label class="f">Their name (optional)<input id="later-name" type="text" autocomplete="off" placeholder="Name"></label>
+        <div class="row"><button class="btn primary" id="later-save" type="button">Save</button><button class="btn" id="later-skip" type="button">Skip</button></div>
       </div>
       <details class="mini"><summary>Wrong house? Type it</summary>
         <div class="row"><input id="d-fix" type="text" placeholder="House number and street" autocomplete="off"><button class="btn small" id="d-fix-go" type="button">Use</button></div></details>
+      <div class="row" style="justify-content:space-between"><span class="muted">Tap or hold a house to see its address.</span><button class="btn small" id="bigmap" type="button">Bigger map</button></div>
       <div id="dmap"></div>
-      <div class="legend"><span><i style="background:#8a978f"></i>No answer</span><span><i style="background:#c0392b"></i>Not interested</span><span><i style="background:#2f6fd6"></i>Has lights</span><span><i style="background:#2e9e5b"></i>Sale</span></div>
+      <div class="legend"><span><i style="background:#8a978f"></i>No answer</span><span><i style="background:#c0392b"></i>Not interested</span><span><i style="background:#2f6fd6"></i>Has lights</span><span><i style="background:#e8a317"></i>Come back later</span><span><i style="background:#2e9e5b"></i>Sale</span></div>
       <p class="fine">Tap a dot to change that door. Tap a house on the map to pick it. No answer never replaces another answer.</p>
     </section>
     <section class="card">
       <h2>Today</h2>
-      <div style="overflow-x:auto"><table><thead><tr><th>Who</th><th>Doors</th><th>No ans.</th><th>No</th><th>Lights</th><th>Sales</th></tr></thead><tbody id="d-today"></tbody></table></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Knocker</th><th>Doors</th><th>No ans.</th><th>No</th><th>Lights</th><th>Later</th><th>Sales</th></tr></thead><tbody id="d-today"></tbody></table></div>
     </section>
     <section class="card">
       <h2>Team sync</h2>
@@ -1218,7 +1237,8 @@ const OUT = {
   none:   {label:"No answer",      color:"#8a978f"},
   no:     {label:"Not interested", color:"#c0392b"},
   lights: {label:"Has lights",     color:"#2f6fd6"},
-  sale:   {label:"Sale",           color:"#2e9e5b"}
+  sale:   {label:"Sale",           color:"#2e9e5b"},
+  later:  {label:"Come back later", color:"#e8a317"}
 };
 const okSyncUrl = u => /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u)
   || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^http:\/\/127\.0\.0\.1:\d+\/$/.test(u));
@@ -1392,19 +1412,38 @@ function showTarget(){
   const bits = [];
   if (picked) bits.push("Picked on the map");
   else if (here && here.acc) bits.push("Your location, ±" + Math.round(here.acc * 3.28084) + " ft");
-  if (d) bits.push(`Last: ${OUT[d.outcome]?.label || d.outcome}${d.seller ? " (" + d.seller + ")" : ""}`);
+  if (d) bits.push("Last: " + doorLine(d));
   $("d-sub").textContent = bits.join(" · ");
   $("d-mine").hidden = !picked;
   if (pickDot){ dmap.removeLayer(pickDot); pickDot = null; }
-  if (picked && picked.lat != null) pickDot = L.circleMarker([picked.lat, picked.lon], {radius:13, color:"#e8a317", weight:3, fill:false, interactive:false}).addTo(dmap);
+  if (picked && picked.lat != null) pickDot = L.circleMarker([picked.lat, picked.lon], {radius:13, color:"#17231d", weight:3, fill:false, interactive:false}).addTo(dmap);
+}
+// "Come back later: Maria · Tomorrow (Ann)"
+function whenLabel(d){ return d.when ? {tonight:"Tonight", tomorrow:"Tomorrow", weekend:"Weekend"}[d.when] || d.when : ""; }
+function doorLine(d){
+  const o = OUT[d.outcome]?.label || d.outcome || "";
+  const extra = d.outcome === "later" ? [d.name, whenLabel(d)].filter(Boolean).join(" · ") : "";
+  const by = d.outcome === "later" ? (d.laterBy || d.seller) : d.seller;   // a come-back belongs to whoever set it
+  return o + (extra ? ": " + extra : "") + (by ? " (" + by + ")" : "");
+}
+// a small bubble on the map with the address (built from text, never HTML, since names come from people)
+function bubble(lat, lon, title, sub){
+  const el = document.createElement("div"), b = document.createElement("b"); b.textContent = title; el.appendChild(b);
+  if (sub){ const s = document.createElement("div"); s.textContent = sub; el.appendChild(s); }
+  L.popup({closeButton:false, autoPan:true}).setLatLng([lat, lon]).setContent(el).openOn(dmap);
 }
 $("d-mine").onclick = () => { picked = null; showTarget(); if (here && here.glat) dmap.setView([here.glat, here.glon], 19); };
 // tap a dot = that door; tap anywhere else = the nearest house to the tap
-dmap.on("click", async ev => {
-  const a = await snapAddress(ev.latlng.lat, ev.latlng.lng).catch(() => null);
+async function pickHouseAt(ll){
+  const a = await snapAddress(ll.lat, ll.lng).catch(() => null);
   if (!a){ toast("No house address there"); return; }
-  picked = a; showTarget();
-});
+  const d = Object.values(doorsAll()).find(x => x.addrKey === a.addrKey);
+  picked = d ? {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon} : a; showTarget();
+  bubble(a.lat, a.lon, a.address, d ? doorLine(d) : "Not knocked yet");
+}
+dmap.on("click", ev => pickHouseAt(ev.latlng));
+dmap.on("contextmenu", ev => pickHouseAt(ev.latlng));   // press and hold on a phone
+$("bigmap").onclick = () => { const on = $("view-doors").classList.toggle("bigmap"); $("bigmap").textContent = on ? "Smaller map" : "Bigger map"; setTimeout(() => dmap.invalidateSize(), 60); };
 $("d-fix-go").onclick = () => {
   const v = $("d-fix").value.trim(); if (!v) return;
   const t = target() || {};
@@ -1412,8 +1451,10 @@ $("d-fix-go").onclick = () => {
   $("d-fix").value = ""; showTarget(); toast("Using " + v);
 };
 document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => knock(b.dataset.door));
+let laterFor = null, laterWhen = "";
 function knock(outcome){
-  if (!S.seller){ toast("Type your first name first"); $("who").focus(); return; }
+  if (!S.seller){ toast("Type the knocker's name first"); $("who-row").hidden = false; $("who").focus(); return; }
+  $("later-box").hidden = true; laterFor = null;
   const t = target();
   if (!t || t.lat == null){ toast("Waiting for your location. Or tap the house on the map."); return; }
   const ds = doorsAll();
@@ -1421,14 +1462,45 @@ function knock(outcome){
   if (!d) d = {id: rid(), address: t.address || "", addrKey: t.addrKey || "", lat: t.lat, lon: t.lon, outcome: "", knocks: 0};
   const kept = outcome === "none" && d.outcome && d.outcome !== "none";
   if (!kept) d.outcome = outcome;
+  if (outcome === "later") d.laterBy = S.seller;
   d.knocks = (d.knocks || 0) + 1; d.seller = S.seller; d.updated = Date.now();
   ds[d.id] = d; store.set(DOORS, ds);
-  enqueue("door", d.id, {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome});
+  enqueue("door", d.id, Object.assign({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome}, outcome === "later" ? {laterBy: S.seller} : {}));
   renderDoors();
   toast(kept ? `Kept "${OUT[d.outcome].label}" (No answer doesn't replace it)` : `${OUT[outcome].label}: ${d.address || "saved"}`);
   picked = null; showTarget();
   if (outcome === "sale") startQuote(d);
+  // Come back later is saved already; the box only adds when and who (council #6: a tap must never wait on typing)
+  if (outcome === "later" && !kept){
+    laterFor = d.id; laterWhen = d.when || "";
+    $("later-addr").textContent = "Come back later: " + (d.address || "this house");
+    $("later-name").value = d.name || "";
+    document.querySelectorAll("[data-when]").forEach(x => x.setAttribute("aria-pressed", x.dataset.when === laterWhen));
+    $("later-box").hidden = false;
+  }
 }
+document.querySelectorAll("[data-when]").forEach(b => b.onclick = () => {
+  laterWhen = laterWhen === b.dataset.when ? "" : b.dataset.when;
+  document.querySelectorAll("[data-when]").forEach(x => x.setAttribute("aria-pressed", x.dataset.when === laterWhen));
+});
+function dueAt(when){
+  const n = new Date(), d = new Date(n);
+  if (when === "tonight"){ d.setHours(17, 0, 0, 0); return Math.max(+d, +n); }
+  if (when === "tomorrow"){ d.setDate(d.getDate() + 1); d.setHours(16, 0, 0, 0); return +d; }
+  if (when === "weekend"){ const k = (6 - d.getDay() + 7) % 7; d.setDate(d.getDate() + k); d.setHours(10, 0, 0, 0); return Math.max(+d, +n); }
+  return 0;
+}
+$("later-save").onclick = () => {
+  const ds = doorsAll(), d = laterFor && ds[laterFor];
+  if (d){
+    d.name = $("later-name").value.trim(); d.when = laterWhen; d.due = dueAt(laterWhen);
+    ds[d.id] = d; store.set(DOORS, ds);
+    enqueue("door", d.id, {id:d.id, outcome:"later", name:d.name, when:d.when, due:d.due, fill:true});
+    toast("Saved" + (d.name ? ": " + d.name : "") + (d.when ? " · " + whenLabel(d) : ""));
+  }
+  $("later-box").hidden = true; laterFor = null; renderDoors();
+};
+$("later-skip").onclick = () => { $("later-box").hidden = true; laterFor = null; };
 // Sale: open the quote with the house already found
 function startQuote(d){
   showTab("quote");
@@ -1454,7 +1526,7 @@ function renderDoors(){
   for (const d of ds){
     if (d.lat == null) continue;
     L.circleMarker([d.lat, d.lon], {radius:9, color:"#ffffff", weight:2, fillColor:(OUT[d.outcome] || OUT.none).color, fillOpacity:1, bubblingMouseEvents:false})
-      .on("click", () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); })
+      .on("click", () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); bubble(d.lat, d.lon, d.address || "No address yet", doorLine(d)); })
       .addTo(dlayer);
   }
   // today, per seller (a door counts for whoever touched it last)
@@ -1462,17 +1534,43 @@ function renderDoors(){
   const rows = {};
   for (const d of ds){
     if (!d.updated || d.updated < +start) continue;
-    const who = d.seller || "?"; rows[who] = rows[who] || {doors:0, none:0, no:0, lights:0, sale:0};
+    const who = d.seller || "?"; rows[who] = rows[who] || {doors:0, none:0, no:0, lights:0, later:0, sale:0};
     rows[who].doors++; rows[who][d.outcome] = (rows[who][d.outcome] || 0) + 1;
   }
   const names = Object.keys(rows).sort();
-  $("d-today").innerHTML = names.length ? names.map(n => { const r = rows[n]; return `<tr><td></td><td>${r.doors}</td><td>${r.none}</td><td>${r.no}</td><td>${r.lights}</td><td>${r.sale}</td></tr>`; }).join("")
-    : '<tr><td class="muted" colspan="6" style="text-align:left">No doors yet today.</td></tr>';
+  $("d-today").innerHTML = names.length ? names.map(n => { const r = rows[n]; return `<tr><td></td><td>${r.doors}</td><td>${r.none}</td><td>${r.no}</td><td>${r.lights}</td><td>${r.later}</td><td>${r.sale}</td></tr>`; }).join("")
+    : '<tr><td class="muted" colspan="7" style="text-align:left">No doors yet today.</td></tr>';
   [...$("d-today").querySelectorAll("tr")].forEach((tr, i) => { if (names[i]) tr.firstChild.textContent = names[i]; });
+  renderComeBack();
   showTarget();
 }
+// Come back list (council #6, 5 of 5): every open "Come back later" from both knockers, due ones first
+function renderComeBack(){
+  const now = Date.now(), pos = here && here.glat != null ? [here.glat, here.glon] : null;
+  const list = Object.values(doorsAll()).filter(d => d.outcome === "later" && d.lat != null);
+  const dist = d => pos ? ftBetween(pos, [d.lat, d.lon]) : 0;
+  list.sort((a, b) => ((a.due || Infinity) - (b.due || Infinity)) || (dist(a) - dist(b)));
+  const due = list.filter(d => d.due && d.due <= now).length;
+  $("cb-card").hidden = !list.length;
+  $("cb-card").classList.toggle("due", due > 0);
+  $("cb-sum").textContent = "Come back: " + list.length + (due ? ` (${due} due now)` : "");
+  const box = $("cb-list"); box.innerHTML = "";
+  for (const d of list){
+    const b = document.createElement("button"); b.type = "button"; b.className = "cb" + (d.due && d.due <= now ? " due" : "");
+    const t = document.createElement("b"); t.textContent = d.address || "No address yet";
+    const s = document.createElement("span"); s.className = "muted";
+    s.textContent = [d.name, whenLabel(d) + (d.due ? " (" + new Date(d.due).toLocaleDateString("en-US", {weekday:"short"}) + ")" : ""), (d.laterBy || d.seller) ? "by " + (d.laterBy || d.seller) : "", pos ? Math.round(dist(d)) + " ft away" : ""].filter(x => x && x.trim()).join(" · ");
+    b.append(t, s);
+    b.onclick = () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); dmap.setView([d.lat, d.lon], 19); bubble(d.lat, d.lon, d.address, doorLine(d)); window.scrollTo({top: $("d-addr").getBoundingClientRect().top + scrollY - 80, behavior:"smooth"}); };
+    box.appendChild(b);
+  }
+}
 // your first name: tags every door and quote, so the team sees who did what
-function showWho(){ $("who-row").hidden = !!S.seller; $("who").value = S.seller || ""; }
+function showWho(){
+  $("who-row").hidden = !!S.seller; $("who").value = S.seller || "";
+  $("d-knocker").textContent = S.seller ? "Knocker: " + S.seller : "";
+}
+$("d-knocker").onclick = () => { $("who-row").hidden = false; $("who").focus(); };
 $("who").addEventListener("change", () => {
   const v = $("who").value.trim(); if (!v) return;
   S.seller = v; store.set("lq-settings", S); $("s-seller").value = v; showWho();
