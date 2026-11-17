@@ -342,18 +342,24 @@ details.comeback.due>summary{color:var(--warn)}
       <div class="row" style="justify-content:space-between"><h2>This door</h2><span class="muted" id="d-knocker"></span></div>
       <label class="f" id="who-row" hidden>Knocker's name (it goes on every door and quote you log)<input id="who" type="text" autocomplete="off" placeholder="First name"></label>
       <div class="door-addr"><b id="d-addr">Finding where you are…</b><span class="muted" id="d-sub"></span></div>
+      <p class="muted" id="sync-status-d"></p>
       <div class="row"><button class="btn small" id="d-mine" type="button" hidden>Use my location</button></div>
       <div class="outs">
         <button type="button" data-door="none" style="--c:#8a978f">No answer</button>
         <button type="button" data-door="no" style="--c:#c0392b">Not interested</button>
         <button type="button" data-door="lights" style="--c:#2f6fd6">Has lights</button>
         <button type="button" data-door="later" style="--c:#e8a317">Come back later</button>
-        <button type="button" data-door="sale" class="wide" style="--c:#2e9e5b">Sale</button>
+        <button type="button" data-door="sale" id="sale-btn" class="wide" style="--c:#2e9e5b">Sale</button>
       </div>
       <div class="later-box" id="later-box" hidden>
         <b id="later-addr">Come back later</b>
         <div class="q"><span class="qlabel">When?</span>
           <div class="chips" id="later-when"><button type="button" class="chip" data-when="tonight" aria-pressed="false">Tonight</button><button type="button" class="chip" data-when="tomorrow" aria-pressed="false">Tomorrow</button><button type="button" class="chip" data-when="weekend" aria-pressed="false">Weekend</button></div></div>
+        <div class="q" id="later-day-row" hidden><span class="qlabel">Which day?</span>
+          <div class="chips"><button type="button" class="chip" data-day="6" aria-pressed="false">Sat</button><button type="button" class="chip" data-day="0" aria-pressed="false">Sun</button></div></div>
+        <div class="q" id="later-time-row" hidden><span class="qlabel">What time?</span>
+          <div class="chips"><button type="button" class="chip" data-time="16:00" aria-pressed="false">4 PM</button><button type="button" class="chip" data-time="17:00" aria-pressed="false">5 PM</button><button type="button" class="chip" data-time="18:00" aria-pressed="false">6 PM</button><button type="button" class="chip" data-time="19:00" aria-pressed="false">7 PM</button></div>
+          <label class="f">Other time<input id="later-time" type="time"></label></div>
         <label class="f">Their name (optional)<input id="later-name" type="text" autocomplete="off" placeholder="Name"></label>
         <div class="row"><button class="btn primary" id="later-save" type="button">Save</button><button class="btn" id="later-skip" type="button">Skip</button></div>
       </div>
@@ -683,7 +689,18 @@ $("addr-form").addEventListener("submit", async ev => {
     $("map-hint").textContent = "Pick the right address.";
   }catch(e){ $("map-hint").textContent = e.message + ". Check your signal and try again, or type the feet yourself."; }
 });
+// A new house starts a clean quote: bushes, trees, walkway, typed feet, returning box and picture never carry over
+// (bug found 11/17: house A's extras and picture were going out on house B's quote).
+function resetQuote(){
+  for (const k of ["small","big","trunk","canS","canM","canL","walk"]) st[k] = 0;
+  st.lower = 0; st.ridgeOn = false; st.ridge = 0; st.peaks = false; st.returning = false; st.story = 1;
+  seg("st-1","st-2",true); $("lower-row").hidden = true;
+  $("ln-ridge").setAttribute("aria-pressed", false); $("ridge-row").hidden = true; $("ln-peaks").setAttribute("aria-pressed", false);
+  $("manual-feet").value = ""; $("returning").checked = false; $("pic-ok").checked = false;
+  lit.data = null; $("lit-img").hidden = true; $("lit-img").removeAttribute("src");
+}
 async function pick(r){
+  resetQuote();
   st.lat = +r.lat; st.lon = +r.lon; st.address = r.display_name.split(",").slice(0,3).join(",").trim();
   // OpenStreetMap often knows the street but not the house number; then look the number up in the county address points
   const typed = $("addr").value.match(/^\s*(\d+[A-Za-z]?)\s+([^,]+)/);
@@ -1031,7 +1048,13 @@ function saveLead(sent){
     quote: {feet:p.feet, roof:p.roof, ridgeFt:p.ridgeFt, ridge:p.ridge, minAdd:p.minAdd, returning: !!st.returning, nextYear: st.returning ? 0 : nextYearPrice(st.level), yard:p.yard, yardLabel: yardLabel(), walk:p.walk, walkFt:p.walkFt, total:p.total, half1:firstPay(p.total),
       level: st.level, story: st.story, wrap: st.wrap, nets:p.nets, trunk:st.trunk, canS:st.canS, canM:st.canM, canL:st.canL,
       walls: st.edges.filter(e => e.main && e.on).map(e => Math.round(e.len)), peaks: st.peaks, lower: st.story === 2 ? st.lower : 0} };
-  const all = leads(); all.unshift(lead); saveLeads(all); renderLeads();
+  const all = leads(), digits = x => (x || "").replace(/\D/g, "").slice(-10);
+  const same = all.find(l => addrKey(l.address) === addrKey(lead.address) && digits(l.phone) === digits(lead.phone) && (lead.phone || l.name === lead.name));
+  if (same){
+    Object.assign(same, {name: lead.name || same.name, quote: lead.quote, consent: same.consent || lead.consent, touches: Math.max(same.touches || 0, lead.touches)});
+    all.splice(all.indexOf(same), 1); all.unshift(same); saveLeads(all); renderLeads(); return same;
+  }
+  all.unshift(lead); saveLeads(all); renderLeads();
   setTimeout(() => { $("c-name").value = ""; $("c-phone").value = ""; $("c-consent").checked = false; }, 1500);
   return lead;
 }
@@ -1040,7 +1063,8 @@ $("save-only").onclick = () => { const l = saveLead(false); if (l) toast("Quote 
 
 function renderLeads(){
   const all = leads(), now = new Date(); now.setHours(23,59,59);
-  const due = all.filter(l => { const d = nextDue(l); return d && d <= now; });
+  // only your own customers: a teammate's lead is theirs to text (no double texts)
+  const due = all.filter(l => { const d = nextDue(l); return d && d <= now && (!l.seller || !S.seller || l.seller === S.seller); });
   $("due-count").textContent = due.length ? `(${due.length})` : "";
   const card = (l, showDue) => {
     const d = nextDue(l), el = document.createElement("div"); el.className = "lead";
@@ -1092,7 +1116,7 @@ $("restore-in").addEventListener("change", async ev => {
     const sd = stockData(), bids = new Set(sd.buys.map(b => b.id));
     const addB = ((d.stock && d.stock.buys) || []).filter(b => !bids.has(b.id));
     sd.buys = sd.buys.concat(addB); store.set("lq-stock", sd);
-    if (d.settings){ Object.assign(S, d.settings); store.set("lq-settings", S); SKEYS.forEach(k => { const el = $("s-" + k); if (el) el.value = S[k]; }); }
+    if (d.settings){ const {seller, ...rest} = d.settings; Object.assign(S, rest); store.set("lq-settings", S); SKEYS.forEach(k => { const el = $("s-" + k); if (el) el.value = S[k]; }); }
     renderLeads(); renderStock(); update();
     toast(`Restored ${addL.length} quotes and ${addB.length} purchases`);
   }catch(e){ toast("That file isn't a Light Quote backup"); }
@@ -1311,6 +1335,13 @@ async function syncNow(){
   syncStatus();
 }
 function mergeRemote(j){
+  if (j.deleted && j.deleted.length){   // removed from the sheet (a test, or a mistake): remove here too
+    const gone = new Set(j.deleted), ds = store.get(DOORS, {});
+    for (const id of gone) delete ds[id];
+    store.set(DOORS, ds); store.set("lq-leads", leads().filter(l => !gone.has(l.id)));
+    store.set(OUTBOX, store.get(OUTBOX, []).filter(e => !gone.has(e.id)));
+    renderDoors(); renderLeads(); renderStock();
+  }
   const pend = store.get(OUTBOX, []);
   const pendLead = new Set(pend.filter(e => e.kind === "lead").map(e => e.id)), pendDoor = new Set(pend.filter(e => e.kind === "door").map(e => e.id));
   if (j.leads && j.leads.length){
@@ -1333,17 +1364,17 @@ function syncStatus(){
   let msg;
   if (!t) msg = "Team sync is off on this phone. Open the invite link to turn it on.";
   else if (syncing) msg = "Syncing…";
-  else if (n) msg = `${n} waiting to send. ` + (syncErr || "");
+  else if (n) msg = `${n} waiting to send. They go to the team sheet when you have signal. ` + (syncErr && !/No signal/.test(syncErr) ? syncErr : "");
   else if (syncErr) msg = syncErr;
-  else msg = last ? "All synced · " + new Date(last).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"}) : "Not synced yet.";
-  for (const id of ["sync-status", "sync-status-l"]){ const el = $(id); if (el){ el.textContent = msg; el.classList.toggle("warn", !!(t && (n || syncErr) && !syncing)); } }
+  else msg = last ? "✓ All saved to the team sheet · " + new Date(last).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"}) : "Not synced yet.";
+  for (const id of ["sync-status", "sync-status-l", "sync-status-d"]){ const el = $(id); if (el){ el.textContent = msg; el.classList.toggle("warn", !!(t && (n || syncErr) && !syncing)); } }
   $("invite").hidden = !t;
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
 setInterval(() => { if (document.visibilityState === "visible") syncNow(); }, 60000);
 $("sync-now").onclick = () => { if (!team()){ toast("Open the invite link on this phone first"); return; } syncNow(); };
 $("invite").onclick = async () => {
-  const link = inviteLink(), text = "Light Quote team link. Open it on your phone (in Safari), then Add to Home Screen: " + link;
+  const link = inviteLink(), text = "Light Quote team link. Open Light Quote the way you always do (Safari or your Home Screen icon), go to Doors > Team sync > Join with an invite link, and paste this (in Safari you can also just tap it): " + link;
   try{ if (navigator.share){ await navigator.share({title:"Light Quote team", text}); return; } }catch(e){ return; }
   try{ await navigator.clipboard.writeText(text); toast("Invite link copied"); }catch(e){ toast("Couldn't copy on this phone"); }
 };
@@ -1400,14 +1431,19 @@ async function onFix(pos){
   }
   showTarget();
 }
+function mark(p){ return Object.assign(p, {at: Date.now(), from: here && here.glat != null ? [here.glat, here.glon] : null}); }
+// the same street address in two cities is two doors: match only within ~500 ft
+const nearDoor = (x, t) => x.lat == null || t.lat == null || ftBetween([x.lat, x.lon], [t.lat, t.lon]) < 500;
+function findDoor(t){ const ds = doorsAll(); return t.id ? ds[t.id] : (t.addrKey ? Object.values(ds).find(x => x.addrKey === t.addrKey && nearDoor(x, t)) : null); }
 function target(){
+  if (picked && ((picked.at && Date.now() - picked.at > 120000) || (picked.from && here && here.glat != null && ftBetween(picked.from, [here.glat, here.glon]) > 60))) picked = null;
   if (picked) return picked;
   if (!here) return null;
   return {address: here.address || "", addrKey: here.addrKey || "", lat: here.lat ?? here.glat, lon: here.lon ?? here.glon, number: here.number, street: here.street};
 }
 function showTarget(){
-  const t = target(), ds = doorsAll();
-  const d = t && (t.id ? ds[t.id] : (t.addrKey && Object.values(ds).find(x => x.addrKey === t.addrKey)));
+  const t = target();
+  const d = t && findDoor(t);
   $("d-addr").textContent = t ? (t.address || "Address not found yet") : "Finding where you are…";
   const bits = [];
   if (picked) bits.push("Picked on the map");
@@ -1419,7 +1455,14 @@ function showTarget(){
   if (picked && picked.lat != null) pickDot = L.circleMarker([picked.lat, picked.lon], {radius:13, color:"#17231d", weight:3, fill:false, interactive:false}).addTo(dmap);
 }
 // "Come back later: Maria · Tomorrow (Ann)"
-function whenLabel(d){ return d.when ? {tonight:"Tonight", tomorrow:"Tomorrow", weekend:"Weekend"}[d.when] || d.when : ""; }
+// when is stored as "tomorrow@18:00" or "weekend-6@10:00" (day 6 = Sat, 0 = Sun); the due time is d.due
+function parseWhen(w){ const m = String(w || "").match(/^(tonight|tomorrow|weekend)(?:-([06]))?(?:@(\d\d:\d\d))?$/); return m ? {when:m[1], day:m[2] ?? "", time:m[3] || ""} : {when:"", day:"", time:""}; }
+function clock(t){ if (!t) return ""; const [h, m] = t.split(":").map(Number); return (h % 12 || 12) + (m ? ":" + String(m).padStart(2, "0") : "") + (h < 12 ? " AM" : " PM"); }
+function whenLabel(d){
+  const w = parseWhen(d.when); if (!w.when) return "";
+  const day = w.when === "weekend" ? (w.day === "0" ? "Sun" : w.day === "6" ? "Sat" : "Weekend") : {tonight:"Tonight", tomorrow:"Tomorrow"}[w.when];
+  return day + (w.time ? " " + clock(w.time) : "");
+}
 function doorLine(d){
   const o = OUT[d.outcome]?.label || d.outcome || "";
   const extra = d.outcome === "later" ? [d.name, whenLabel(d)].filter(Boolean).join(" · ") : "";
@@ -1437,8 +1480,8 @@ $("d-mine").onclick = () => { picked = null; showTarget(); if (here && here.glat
 async function pickHouseAt(ll){
   const a = await snapAddress(ll.lat, ll.lng).catch(() => null);
   if (!a){ toast("No house address there"); return; }
-  const d = Object.values(doorsAll()).find(x => x.addrKey === a.addrKey);
-  picked = d ? {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon} : a; showTarget();
+  const d = findDoor(a);
+  picked = mark(d ? {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon} : a); showTarget();
   bubble(a.lat, a.lon, a.address, d ? doorLine(d) : "Not knocked yet");
 }
 dmap.on("click", ev => pickHouseAt(ev.latlng));
@@ -1447,18 +1490,31 @@ $("bigmap").onclick = () => { const on = $("view-doors").classList.toggle("bigma
 $("d-fix-go").onclick = () => {
   const v = $("d-fix").value.trim(); if (!v) return;
   const t = target() || {};
-  picked = {address: v, addrKey: addrKey(v), lat: t.lat ?? null, lon: t.lon ?? null};
+  picked = mark({address: v, addrKey: addrKey(v), lat: t.lat ?? null, lon: t.lon ?? null});
   $("d-fix").value = ""; showTarget(); toast("Using " + v);
 };
 document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => knock(b.dataset.door));
-let laterFor = null, laterWhen = "";
+let laterFor = null, laterWhen = "", armed = null;
+function armedOk(key){
+  if (armed && armed.key === key && Date.now() - armed.at < 5000){ armed = null; $("sale-btn").textContent = "Sale"; return true; }
+  armed = {key, at: Date.now()};
+  setTimeout(() => { if (armed && armed.key === key){ armed = null; $("sale-btn").textContent = "Sale"; } }, 5000);
+  return false;
+}
 function knock(outcome){
   if (!S.seller){ toast("Type the knocker's name first"); $("who-row").hidden = false; $("who").focus(); return; }
   $("later-box").hidden = true; laterFor = null;
   const t = target();
   if (!t || t.lat == null){ toast("Waiting for your location. Or tap the house on the map."); return; }
   const ds = doorsAll();
-  let d = t.id ? ds[t.id] : (t.addrKey && Object.values(ds).find(x => x.addrKey === t.addrKey));
+  let d = findDoor(t);
+  // council #7 (3 of 5): the house must be unmistakable before a Sale; and one stray tap can't erase a Sale
+  if (outcome === "sale" && !armedOk("sale|" + (d ? d.id : t.addrKey || t.address))){
+    $("sale-btn").textContent = "Tap again: Sale at " + (t.address || "this house"); return;
+  }
+  if (d && d.outcome === "sale" && outcome !== "sale" && outcome !== "none" && !armedOk("unsale|" + d.id + outcome)){
+    toast(`This house is a Sale. Tap "${OUT[outcome].label}" again to change it.`); return;
+  }
   if (!d) d = {id: rid(), address: t.address || "", addrKey: t.addrKey || "", lat: t.lat, lon: t.lon, outcome: "", knocks: 0};
   const kept = outcome === "none" && d.outcome && d.outcome !== "none";
   if (!kept) d.outcome = outcome;
@@ -1472,28 +1528,44 @@ function knock(outcome){
   if (outcome === "sale") startQuote(d);
   // Come back later is saved already; the box only adds when and who (council #6: a tap must never wait on typing)
   if (outcome === "later" && !kept){
-    laterFor = d.id; laterWhen = d.when || "";
+    laterFor = d.id; const w = parseWhen(d.when); laterWhen = w.when; laterDay = w.day; laterTime = w.time;
     $("later-addr").textContent = "Come back later: " + (d.address || "this house");
     $("later-name").value = d.name || "";
-    document.querySelectorAll("[data-when]").forEach(x => x.setAttribute("aria-pressed", x.dataset.when === laterWhen));
-    $("later-box").hidden = false;
+    paintLater(); $("later-box").hidden = false;
   }
+}
+// his ask 11/17: picking Tonight / Tomorrow / Weekend then asks what time (and Sat or Sun for the weekend)
+let laterDay = "", laterTime = "";
+function paintLater(){
+  document.querySelectorAll("[data-when]").forEach(x => x.setAttribute("aria-pressed", x.dataset.when === laterWhen));
+  document.querySelectorAll("[data-day]").forEach(x => x.setAttribute("aria-pressed", x.dataset.day === laterDay));
+  document.querySelectorAll("[data-time]").forEach(x => x.setAttribute("aria-pressed", x.dataset.time === laterTime));
+  $("later-time").value = laterTime && ![...document.querySelectorAll("[data-time]")].some(x => x.dataset.time === laterTime) ? laterTime : "";
+  $("later-day-row").hidden = laterWhen !== "weekend";
+  $("later-time-row").hidden = !laterWhen;
 }
 document.querySelectorAll("[data-when]").forEach(b => b.onclick = () => {
   laterWhen = laterWhen === b.dataset.when ? "" : b.dataset.when;
-  document.querySelectorAll("[data-when]").forEach(x => x.setAttribute("aria-pressed", x.dataset.when === laterWhen));
+  if (laterWhen === "weekend" && !laterDay) laterDay = "6";
+  paintLater();
 });
-function dueAt(when){
+document.querySelectorAll("[data-day]").forEach(b => b.onclick = () => { laterDay = b.dataset.day; paintLater(); });
+document.querySelectorAll("[data-time]").forEach(b => b.onclick = () => { laterTime = laterTime === b.dataset.time ? "" : b.dataset.time; paintLater(); });
+$("later-time").addEventListener("change", () => { laterTime = $("later-time").value || ""; paintLater(); });
+function whenCode(){ return laterWhen ? laterWhen + (laterWhen === "weekend" && laterDay ? "-" + laterDay : "") + (laterTime ? "@" + laterTime : "") : ""; }
+function dueAt(code){
+  const w = parseWhen(code); if (!w.when) return 0;
   const n = new Date(), d = new Date(n);
-  if (when === "tonight"){ d.setHours(17, 0, 0, 0); return Math.max(+d, +n); }
-  if (when === "tomorrow"){ d.setDate(d.getDate() + 1); d.setHours(16, 0, 0, 0); return +d; }
-  if (when === "weekend"){ const k = (6 - d.getDay() + 7) % 7; d.setDate(d.getDate() + k); d.setHours(10, 0, 0, 0); return Math.max(+d, +n); }
-  return 0;
+  const def = {tonight:"17:00", tomorrow:"16:00", weekend:"10:00"}[w.when], [h, m] = (w.time || def).split(":").map(Number);
+  if (w.when === "tomorrow") d.setDate(d.getDate() + 1);
+  if (w.when === "weekend"){ const want = w.day === "0" ? 0 : 6; d.setDate(d.getDate() + (want - d.getDay() + 7) % 7); }
+  d.setHours(h, m, 0, 0);
+  return w.when === "tomorrow" ? +d : Math.max(+d, +n);
 }
 $("later-save").onclick = () => {
   const ds = doorsAll(), d = laterFor && ds[laterFor];
   if (d){
-    d.name = $("later-name").value.trim(); d.when = laterWhen; d.due = dueAt(laterWhen);
+    d.name = $("later-name").value.trim(); d.when = whenCode(); d.due = dueAt(d.when);
     ds[d.id] = d; store.set(DOORS, ds);
     enqueue("door", d.id, {id:d.id, outcome:"later", name:d.name, when:d.when, due:d.due, fill:true});
     toast("Saved" + (d.name ? ": " + d.name : "") + (d.when ? " · " + whenLabel(d) : ""));
@@ -1510,15 +1582,19 @@ function startQuote(d){
   window.scrollTo({top:0, behavior:"smooth"});
 }
 // doors logged with no signal get their address once the address tile loads
+let filling = false;
 async function fillAddresses(){
-  const ds = doorsAll();
-  for (const d of Object.values(ds)){
-    if (d.address || d.lat == null) continue;
-    const a = await snapAddress(d.lat, d.lon).catch(() => null); if (!a) continue;
-    d.address = a.address; d.addrKey = a.addrKey; d.lat = a.lat; d.lon = a.lon; ds[d.id] = d;
-    enqueue("door", d.id, {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, fill:true});
-  }
-  store.set(DOORS, ds);
+  if (filling) return; filling = true;
+  try{
+    for (const id of Object.keys(doorsAll())){
+      const d0 = doorsAll()[id];
+      if (!d0 || d0.address || d0.lat == null || (d0.seller && d0.seller !== S.seller)) continue;   // your own doors only
+      const a = await snapAddress(d0.lat, d0.lon).catch(() => null); if (!a) continue;
+      const ds = doorsAll(), d = ds[id]; if (!d || d.address) continue;   // re-read after the wait: never write back a stale copy
+      d.address = a.address; d.addrKey = a.addrKey; d.lat = a.lat; d.lon = a.lon; ds[id] = d; store.set(DOORS, ds);
+      enqueue("door", id, {id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, fill:true});
+    }
+  } finally { filling = false; }
 }
 function renderDoors(){
   dlayer.clearLayers();
@@ -1526,7 +1602,7 @@ function renderDoors(){
   for (const d of ds){
     if (d.lat == null) continue;
     L.circleMarker([d.lat, d.lon], {radius:9, color:"#ffffff", weight:2, fillColor:(OUT[d.outcome] || OUT.none).color, fillOpacity:1, bubblingMouseEvents:false})
-      .on("click", () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); bubble(d.lat, d.lon, d.address || "No address yet", doorLine(d)); })
+      .on("click", () => { picked = mark({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}); showTarget(); bubble(d.lat, d.lon, d.address || "No address yet", doorLine(d)); })
       .addTo(dlayer);
   }
   // today, per seller (a door counts for whoever touched it last)
@@ -1559,9 +1635,9 @@ function renderComeBack(){
     const b = document.createElement("button"); b.type = "button"; b.className = "cb" + (d.due && d.due <= now ? " due" : "");
     const t = document.createElement("b"); t.textContent = d.address || "No address yet";
     const s = document.createElement("span"); s.className = "muted";
-    s.textContent = [d.name, whenLabel(d) + (d.due ? " (" + new Date(d.due).toLocaleDateString("en-US", {weekday:"short"}) + ")" : ""), (d.laterBy || d.seller) ? "by " + (d.laterBy || d.seller) : "", pos ? Math.round(dist(d)) + " ft away" : ""].filter(x => x && x.trim()).join(" · ");
+    s.textContent = [d.name, whenLabel(d), (d.laterBy || d.seller) ? "by " + (d.laterBy || d.seller) : "", pos ? Math.round(dist(d)) + " ft away" : ""].filter(x => x && x.trim()).join(" · ");
     b.append(t, s);
-    b.onclick = () => { picked = {id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}; showTarget(); dmap.setView([d.lat, d.lon], 19); bubble(d.lat, d.lon, d.address, doorLine(d)); window.scrollTo({top: $("d-addr").getBoundingClientRect().top + scrollY - 80, behavior:"smooth"}); };
+    b.onclick = () => { picked = mark({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon}); showTarget(); dmap.setView([d.lat, d.lon], 19); bubble(d.lat, d.lon, d.address, doorLine(d)); window.scrollTo({top: $("d-addr").getBoundingClientRect().top + scrollY - 80, behavior:"smooth"}); };
     box.appendChild(b);
   }
 }
@@ -1578,6 +1654,9 @@ $("who").addEventListener("change", () => {
   toast("Hi " + v);
 });
 showWho(); renderDoors(); syncStatus();
+// Opens with no signal: a service worker keeps the page and its libraries (council #7 + bug found 11/17)
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+setInterval(() => { if ($("view-doors").style.display !== "none") renderComeBack(); }, 60000);
 if (team()){ queueLeadChanges(leads()); syncNow(); }
 
 // ---------- tabs ----------
