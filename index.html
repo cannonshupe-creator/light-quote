@@ -373,14 +373,14 @@ const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
 if (!store.get("lq-settings", null)) store.set("lq-settings", S);
 // Prices from the 11/16 council (his ask: ground work, bushes and trees cheaper). [low, standard, high]
 const PRICES = {
-  roof:  [6.00, 6.50, 7.50],   // per ft, 1 story
-  roof2: [7.00, 7.50, 8.50],   // per ft, 2 story (his 11/16 note: Standard was equal to High)
+  roof:  [5.50, 6.00, 7.00],   // per ft, 1 story (his call 11/17: every per-foot price down $0.50)
+  roof2: [6.50, 7.00, 8.00],   // per ft, 2 story (his 11/16 note: Standard was equal to High; -$0.50 on 11/17)
   net:   [55, 59, 65],         // per net; a big bush is 2 nets
   trunk: [40, 45, 55],         // per tree, trunk wrap
   canS:  [140, 150, 175],      // full tree up to 6 ft
   canM:  [225, 250, 275],      // full tree 7-10 ft
   canL:  [325, 350, 375],      // full tree 11-14 ft
-  walk:  [4.00, 4.50, 5.50]    // per ft, 20 ft minimum
+  walk:  [3.50, 4.00, 5.00]    // per ft, 20 ft minimum (-$0.50 on 11/17)
 };
 const STRANDS = {trunk:1.5, canS:6, canM:9, canL:12.5};
 const PEAKS = 0.12;            // slanted gable edges run ~12% longer than the walls under them (6/12 roof)
