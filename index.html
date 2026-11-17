@@ -26,6 +26,7 @@
   --bg:#0f1714; --surface:#17221d; --ink:#e7eee9; --muted:#9db0a5; --line:#2a3a32;
   --pine:#3f9a6c; --pine-ink:#08130d; --bulb:#f2b632; --bulb-soft:#3a2f12; --warn:#f08a5d; --warn-soft:#3b1f14; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -458,6 +459,14 @@ function drawBuildings(els, lat, lon, roadName, forceId){
       st.edges.push(e);
     }
   }
+  // A short wall (20 ft or less) between two front walls is a step in a stepped front, and the gutter
+  // follows it, so it counts as front. Found 11/16 on his house: the steps (~50 ft) were left out.
+  const m = st.edges.filter(e => e.main), solid = m.filter(e => e.len >= 2);
+  solid.forEach((e, i) => {
+    if (e.face !== "side" || e.len > 20 || solid.length < 4) return;
+    const prev = solid[(i - 1 + solid.length) % solid.length], next = solid[(i + 1) % solid.length];
+    if (prev.face === "front" && next.face === "front") e.face = "front";
+  });
   L.circleMarker(pt, {radius:4, color:"#b4441c", weight:2, fillOpacity:1}).addTo(layer);
   if (bounds.length) map.fitBounds(bounds, {padding:[24,24], maxZoom:20}); else map.setView(pt, 19);
   applySides();
