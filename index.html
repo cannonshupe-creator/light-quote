@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Light Quote</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Light Quote">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Layout: one phone column. Measure, then price, then the customer card; private numbers and leads tuck below. */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --ink:#17231d; --muted:#5d6b63; --line:#d9e0db;
+  --pine:#1f5a3d; --pine-ink:#ffffff; --bulb:#e8a317; --bulb-soft:#fbefd2; --warn:#b4441c; --warn-soft:#fbe6dc;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1714; --surface:#17221d; --ink:#e7eee9; --muted:#9db0a5; --line:#2a3a32;
+  --pine:#3f9a6c; --pine-ink:#08130d; --bulb:#f2b632; --bulb-soft:#3a2f12; --warn:#f08a5d; --warn-soft:#3b1f14; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1714; --surface:#17221d; --ink:#e7eee9; --muted:#9db0a5; --line:#2a3a32;
+  --pine:#3f9a6c; --pine-ink:#08130d; --bulb:#f2b632; --bulb-soft:#3a2f12; --warn:#f08a5d; --warn-soft:#3b1f14; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(12px + env(safe-area-inset-top,0px)) calc(40px + env(safe-area-inset-bottom,0px))}
+main{max-width:560px;margin:0 auto;display:grid;gap:14px}
+h1{font:700 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+h2{font:700 15px/1.2 var(--display);margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
+.tabs button{border:0;background:none;color:var(--muted);font:600 14px var(--body);padding:6px 12px;border-radius:7px}
+.tabs button[aria-selected="true"]{background:var(--pine);color:var(--pine-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;min-width:0}
+input,select{font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--bulb);outline-offset:2px}
+button{font:600 15px var(--body);cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;padding:10px 14px}
+.btn.primary{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
+.btn.small{padding:6px 10px;font-size:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>input{flex:1}
+.muted{color:var(--muted);font-size:13px}
+.results{display:grid;gap:6px}
+.results button{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;padding:9px 11px;font:500 14px var(--body)}
+#map{height:320px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.leaflet-tooltip.len{background:var(--surface);color:var(--ink);border:1px solid var(--line);font:600 11px var(--body);padding:1px 4px;box-shadow:none}
+.leaflet-tooltip.len.on{background:var(--bulb);color:#1b1404;border-color:var(--bulb)}
+.leaflet-tooltip.len::before{display:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;color:var(--muted);padding:9px 6px;border-radius:7px;font:600 14px var(--body)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.q{display:grid;gap:6px}
+.qlabel{font:600 14px var(--body)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:8px 16px;font:600 14px var(--body)}
+.chip[aria-pressed="true"]{background:var(--bulb);border-color:var(--bulb);color:#1b1404}
+.feet{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.feet b{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums}
+.stepper{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.stepper:first-of-type{border-top:0}
+.ctl{display:flex;align-items:center;gap:6px}
+.ctl button{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 20px/1 var(--body)}
+.ctl output{min-width:56px;text-align:center;font:600 16px var(--body);font-variant-numeric:tabular-nums}
+.trees{display:grid;gap:6px}
+.quote{background:var(--surface);border:2px solid var(--pine);border-radius:16px;padding:16px;display:grid;gap:8px}
+.quote .line{display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums}
+.quote .total{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+.quote .total b{font:700 34px/1 var(--display);font-variant-numeric:tabular-nums}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.halves div{background:var(--bulb-soft);border-radius:10px;padding:8px 10px}
+.halves b{display:block;font:700 18px var(--display);font-variant-numeric:tabular-nums}
+.fine{font-size:12px;color:var(--muted)}
+details.card>summary{cursor:pointer;font:700 15px var(--display);list-style:none;display:flex;justify-content:space-between}
+details.card>summary::after{content:"Show";font:600 13px var(--body);color:var(--muted)}
+details.card[open]>summary::after{content:"Hide"}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right}
+td:first-child,th:first-child{text-align:left}
+.flag{background:var(--warn-soft);color:var(--warn);border-radius:9px;padding:8px 10px;font-size:13px;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.check input{width:20px;height:20px;flex:none;margin-top:1px}
+.lead{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;background:var(--surface)}
+.lead .who{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.pill{font:600 12px var(--body);padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.pill.due{background:var(--bulb);color:#1b1404;border-color:var(--bulb)}
+.pill.won{background:var(--pine);color:var(--pine-ink);border-color:var(--pine)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.btn,.seg button{transition:background .15s}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>Light Quote</h1>
+    <div class="tabs" role="tablist">
+      <button id="tab-quote" role="tab" aria-selected="true">Quote</button>
+      <button id="tab-leads" role="tab" aria-selected="false">Leads <span id="due-count"></span></button>
+    </div>
+  </div>
+
+  <div id="view-quote" style="display:grid;gap:14px">
+    <section class="card">
+      <h2>House</h2>
+      <form id="addr-form" class="row" autocomplete="off">
+        <input id="addr" type="text" placeholder="Street address, city" enterkeyhint="search">
+        <button class="btn primary" type="submit">Find</button>
+      </form>
+      <div id="addr-results" class="results"></div>
+      <div id="map"></div>
+      <p class="muted" id="map-hint">Find the house. The street side lights up gold on its own; tap any wall to add or remove it.</p>
+      <div class="q"><span class="qlabel">Which sides?</span>
+        <div class="chips" role="group" aria-label="Which sides">
+          <button type="button" class="chip" data-side="front" aria-pressed="true">Front</button>
+          <button type="button" class="chip" data-side="side" aria-pressed="false">Sides</button>
+          <button type="button" class="chip" data-side="back" aria-pressed="false">Back</button>
+        </div></div>
+      <div class="q"><span class="qlabel">Which lines?</span>
+        <div class="chips" role="group" aria-label="Which lines">
+          <button type="button" class="chip" data-line="gutters" aria-pressed="true">Gutters</button>
+          <button type="button" class="chip" data-line="peaks" aria-pressed="false">Peaks</button>
+          <button type="button" class="chip" data-line="ridge" aria-pressed="false">Ridge</button>
+        </div></div>
+      <div class="stepper" id="ridge-row" hidden><span>Ridge, top of the roof <span class="muted">(estimate, check it from the street)</span></span>
+        <div class="ctl"><button type="button" id="ridge-minus" aria-label="Shorter ridge">−</button><output id="ridge-out">0 ft</output><button type="button" id="ridge-plus" aria-label="Longer ridge">+</button></div></div>
+      <div class="row">
+        <button class="btn small" id="sel-none" type="button">Clear walls</button>
+        <a class="btn small" id="gmaps" href="#" target="_blank" rel="noopener" hidden>Open in Google Maps</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Roofline</h2>
+      <div class="seg" role="group" aria-label="House height">
+        <button id="st-1" aria-pressed="true" type="button">1 story</button>
+        <button id="st-2" aria-pressed="false" type="button">2 story or steep</button>
+      </div>
+      <div class="feet"><b id="feet-out">0</b><span>ft of lights</span></div>
+      <p class="muted" id="feet-detail"></p>
+      <label class="f">Measured it yourself? Type the feet to use instead
+        <input id="manual-feet" type="number" inputmode="numeric" min="0" placeholder="Leave empty to use the map">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Bushes and trees</h2>
+      <div class="stepper"><span>Small bushes <span class="muted">(1 net each)</span></span>
+        <div class="ctl"><button type="button" data-step="small" data-d="-1" aria-label="One less small bush">−</button><output id="small-out">0</output><button type="button" data-step="small" data-d="1" aria-label="One more small bush">+</button></div></div>
+      <div class="stepper"><span>Big bushes <span class="muted">(2 nets each)</span></span>
+        <div class="ctl"><button type="button" data-step="big" data-d="-1" aria-label="One less big bush">−</button><output id="big-out">0</output><button type="button" data-step="big" data-d="1" aria-label="One more big bush">+</button></div></div>
+      <div class="trees" id="trees"></div>
+      <button class="btn small" id="add-tree" type="button">+ Add a small tree</button>
+    </section>
+
+    <section class="card">
+      <h2>Price</h2>
+      <div class="stepper"><span>Roofline, per foot</span>
+        <div class="ctl"><button type="button" data-rate="roof" data-d="-1" aria-label="Lower roofline rate">−</button><output id="roof-rate">$6.50</output><button type="button" data-rate="roof" data-d="1" aria-label="Raise roofline rate">+</button></div></div>
+      <div class="stepper"><span>Bush, per net</span>
+        <div class="ctl"><button type="button" data-rate="net" data-d="-1" aria-label="Lower net price">−</button><output id="net-rate">$75</output><button type="button" data-rate="net" data-d="1" aria-label="Raise net price">+</button></div></div>
+      <div class="stepper"><span>Tree, per foot of height</span>
+        <div class="ctl"><button type="button" data-rate="tree" data-d="-1" aria-label="Lower tree price">−</button><output id="tree-rate">$30</output><button type="button" data-rate="tree" data-d="1" aria-label="Raise tree price">+</button></div></div>
+      <p class="muted">Your floor is $6.00 / $65 / $25. The customer only sees the total below.</p>
+    </section>
+
+    <section class="quote" id="quote-card" aria-live="polite">
+      <div class="line"><span id="q-roof-label">Roofline lights</span><span id="q-roof">$0</span></div>
+      <div class="line" id="q-bush-row" hidden><span id="q-bush-label">Bushes</span><span id="q-bush">$0</span></div>
+      <div class="line" id="q-tree-row" hidden><span id="q-tree-label">Trees</span><span id="q-tree">$0</span></div>
+      <div class="total"><span>Total</span><b id="q-total">$0</b></div>
+      <div class="halves">
+        <div><span class="fine">After setup</span><b id="q-half1">$0</b></div>
+        <div><span class="fine">At takedown</span><b id="q-half2">$0</b></div>
+      </div>
+      <p class="fine">The lights are yours to keep. Install and takedown are included.</p>
+    </section>
+
+    <section class="card">
+      <h2>Send or save</h2>
+      <div class="grid2">
+        <label class="f">Name<input id="c-name" type="text" autocomplete="off"></label>
+        <label class="f">Phone<input id="c-phone" type="tel" inputmode="tel" autocomplete="off"></label>
+      </div>
+      <label class="check"><input id="c-consent" type="checkbox"> They said it's OK to text them about this quote</label>
+      <div class="row">
+        <button class="btn primary" id="send-quote" type="button">Text this quote</button>
+        <button class="btn" id="save-only" type="button">Save without texting</button>
+      </div>
+      <p class="muted" id="send-note">Opens your Messages app with the quote written out. You press send.</p>
+    </section>
+
+    <details class="card" id="ours">
+      <summary>Our numbers</summary>
+      <div id="flag-license" class="flag" hidden></div>
+      <table>
+        <thead><tr><th></th><th>Floor</th><th>Now</th><th>Top</th></tr></thead>
+        <tbody id="ours-body"></tbody>
+      </table>
+      <p class="muted" id="ours-time"></p>
+      <h2>Your costs and speed</h2>
+      <div class="grid2">
+        <label class="f">Your first name, for texts<input id="s-seller" type="text" autocomplete="off"></label>
+        <label class="f">Lights cost per ft<input id="s-costft" type="number" step="0.01" inputmode="decimal"></label>
+        <label class="f">Net cost each<input id="s-costnet" type="number" step="1" inputmode="decimal"></label>
+        <label class="f">Tree strand cost each<input id="s-coststrand" type="number" step="0.5" inputmode="decimal"></label>
+        <label class="f">Install, ft per hour<input id="s-pace" type="number" step="5" inputmode="numeric"></label>
+        <label class="f">Takedown, ft per hour<input id="s-downpace" type="number" step="5" inputmode="numeric"></label>
+        <label class="f">Minutes per net<input id="s-netmin" type="number" step="1" inputmode="numeric"></label>
+        <label class="f">Minutes per tree strand<input id="s-strandmin" type="number" step="1" inputmode="numeric"></label>
+        <label class="f">Roof overhang extra, %<input id="s-overhang" type="number" step="1" inputmode="numeric"></label>
+        <label class="f">Peaks extra, % of walls<input id="s-peaks" type="number" step="1" inputmode="numeric"></label>
+      </div>
+      <div class="row"><button class="btn small" id="cost-hq" type="button">HQ pack $1.99/ft</button><button class="btn small" id="cost-bulk" type="button">Bulk $1.00/ft</button></div>
+      <p class="fine">Speeds are a starting guess from installer guides. Put in your real times after your first few houses. A tree takes about one 25 ft mini strand per foot of height.</p>
+    </details>
+  </div>
+
+  <div id="view-leads" style="display:none;gap:14px">
+    <section class="card">
+      <h2>Follow-ups due</h2>
+      <div id="leads-due" class="results"></div>
+    </section>
+    <section class="card">
+      <h2>All quotes</h2>
+      <div id="leads-all" class="results"></div>
+      <div class="row"><button class="btn small" id="export" type="button">Copy all as backup</button></div>
+      <p class="fine">Quotes are saved on this phone. Use Add to Home Screen so they stay put.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+// ---------- storage (phone only for now) ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const DEFAULTS = {seller:"", costft:1.99, costnet:36, coststrand:12.5, pace:40, downpace:90, netmin:10, strandmin:10, overhang:5, peaks:12};
+const S = Object.assign({}, DEFAULTS, store.get("lq-settings", {}));
+const RATES = { roof:{min:6, max:7.5, step:0.25}, net:{min:65, max:85, step:5}, tree:{min:25, max:35, step:1} };
+const st = { story:1, edges:[], small:0, big:0, trees:[], rate:{roof:6.5, net:75, tree:30}, address:"", lat:null, lon:null,
+  sides:{front:true, side:false, back:false}, lines:{gutters:true, peaks:false, ridge:false}, ridge:0, road:"" };
+
+const $ = id => document.getElementById(id);
+const money = n => "$" + Math.round(n).toLocaleString("en-US");
+const money2 = n => "$" + n.toFixed(2);
+function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
+
+// ---------- map ----------
+const map = L.map("map", {zoomControl:true, attributionControl:true}).setView([33.85,-117.75], 8);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:20, maxNativeZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Houses © <a href="https://overturemaps.org">Overture Maps</a>'}).addTo(map);
+const layer = L.layerGroup().addTo(map);
+
+function ftBetween(a, b){
+  const R = 6371008.8, la = (a[0]+b[0])/2*Math.PI/180;
+  const dx = (b[1]-a[1])*Math.PI/180*Math.cos(la)*R, dy = (b[0]-a[0])*Math.PI/180*R;
+  return Math.hypot(dx, dy) * 3.28084;
+}
+function pointInPoly(pt, poly){
+  let inside = false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const [yi,xi] = poly[i], [yj,xj] = poly[j];
+    if (((yi>pt[0]) !== (yj>pt[0])) && (pt[1] < (xj-xi)*(pt[0]-yi)/(yj-yi)+xi)) inside = !inside;
+  }
+  return inside;
+}
+
+async function geocode(q){
+  // biased toward Southern California, but anywhere in the US still matches
+  const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&limit=5&addressdetails=1&viewbox=-120.7,35.8,-114.1,32.5&q=" + encodeURIComponent(q);
+  const r = await fetch(url, {headers:{"Accept":"application/json"}});
+  if (!r.ok) throw new Error("Address lookup failed (" + r.status + ")");
+  return r.json();
+}
+// Houses and streets both come from Overture Maps' public tile files (a static file on Amazon S3, about a
+// second per tile). Overture's buildings already include OpenStreetMap's, plus Microsoft's and Google's
+// footprints where OSM has none. The public Overpass server was tried first and took 40-70 s under load.
+async function buildingsNear(lat, lon){
+  const [houses, roads] = await Promise.all([overtureBuildings(lat, lon), overtureRoads(lat, lon)]);
+  return houses.concat(roads);
+}
+// Overture Maps buildings (OSM + Microsoft + Google footprints, ODbL), one zoom-14 tile around the house.
+const OVERTURE = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-10-21.0/buildings.pmtiles";
+let overtureLib = null;
+async function overtureBuildings(lat, lon){
+  if (!overtureLib) await overtureBuildings.loadLib();
+  const z = 14, n = 2**z;
+  const x = Math.floor((lon+180)/360*n), y = Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n);
+  const t = await overtureLib.archive.getZxy(z, x, y);
+  if (!t || !t.data) return [];
+  const tile = new overtureLib.VectorTile(new overtureLib.Pbf(new Uint8Array(t.data)));
+  const lyr = tile.layers.building; if (!lyr) return [];
+  const out = [], near = 60 / 111320; // ~60 m box around the house
+  for (let i=0; i<lyr.length; i++){
+    const gj = lyr.feature(i).toGeoJSON(x, y, z);
+    const polys = gj.geometry.type === "Polygon" ? [gj.geometry.coordinates] : gj.geometry.type === "MultiPolygon" ? gj.geometry.coordinates : [];
+    for (const pg of polys){
+      const ring = pg[0];
+      if (!ring.some(c => Math.abs(c[1]-lat) < near && Math.abs(c[0]-lon) < near*1.2)) continue;
+      out.push({id: "ov" + i + "-" + out.length, tags:{building:"yes", source:"overture"}, geometry: ring.map(c => ({lat:c[1], lon:c[0]}))});
+    }
+  }
+  return out;
+}
+async function overtureRoads(lat, lon){
+  if (!overtureLib) await overtureBuildings.loadLib();
+  if (!overtureLib.roads) overtureLib.roads = new overtureLib.pm.PMTiles(OVERTURE.replace("buildings.pmtiles", "transportation.pmtiles"));
+  const z = 14, n = 2**z;
+  const x = Math.floor((lon+180)/360*n), y = Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n);
+  const t = await overtureLib.roads.getZxy(z, x, y);
+  if (!t || !t.data) return [];
+  const vt = new overtureLib.VectorTile(new overtureLib.Pbf(new Uint8Array(t.data)));
+  const lyr = vt.layers.segment; if (!lyr) return [];
+  const out = [], near = 150 / 111320;
+  for (let i=0; i<lyr.length; i++){
+    const f = lyr.feature(i), p = f.properties;
+    if (p.subtype !== "road" || !p["@name"]) continue;
+    const g = f.toGeoJSON(x, y, z).geometry;
+    const lines = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+    for (const ln of lines){
+      if (!ln.some(c => Math.abs(c[1]-lat) < near && Math.abs(c[0]-lon) < near*1.2)) continue;
+      out.push({id:"rd"+i+"-"+out.length, tags:{highway:p.class || "road", name:p["@name"]}, geometry: ln.map(c => ({lat:c[1], lon:c[0]}))});
+    }
+  }
+  return out;
+}
+overtureBuildings.loadLib = async () => {
+  const [pm, vt, pbf] = await Promise.all([
+    import("https://cdn.jsdelivr.net/npm/pmtiles@4.3.0/+esm"),
+    import("https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.3/+esm"),
+    import("https://cdn.jsdelivr.net/npm/pbf@4.0.1/+esm")]);
+  overtureLib = {pm, archive: new pm.PMTiles(OVERTURE), VectorTile: vt.VectorTile, Pbf: pbf.default};
+};
+
+// Exact house number where OpenStreetMap only knows the street: Overture address points
+// (county address files, e.g. Riverside County's). Searches the 3x3 zoom-14 tiles around the street.
+const OVERTURE_ADDR = OVERTURE.replace("buildings.pmtiles", "addresses.pmtiles");
+let addrArchive = null;
+const SUFFIX = {STREET:"ST", AVENUE:"AVE", AV:"AVE", DRIVE:"DR", ROAD:"RD", LANE:"LN", COURT:"CT", CIRCLE:"CIR", PLACE:"PL",
+  BOULEVARD:"BLVD", TERRACE:"TER", PARKWAY:"PKWY", HIGHWAY:"HWY", NORTH:"N", SOUTH:"S", EAST:"E", WEST:"W", TRAIL:"TRL", WAY:"WAY"};
+const normStreet = s => (s||"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").split(/\s+/).filter(Boolean).map(w => SUFFIX[w] || w);
+function streetMatches(want, have){
+  const W = normStreet(want), H = normStreet(have);
+  const core = W.filter(w => !Object.values(SUFFIX).includes(w) || W.length === 1);
+  return core.length > 0 && core.every(w => H.includes(w));
+}
+async function overtureAddress(number, street, lat, lon){
+  if (!overtureLib) await overtureBuildings.loadLib();
+  if (!addrArchive) addrArchive = new overtureLib.pm.PMTiles(OVERTURE_ADDR);
+  const z = 14, n = 2**z;
+  const x0 = Math.floor((lon+180)/360*n), y0 = Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n);
+  const jobs = [];
+  for (const dx of [0,-1,1]) for (const dy of [0,-1,1]) jobs.push([x0+dx, y0+dy]);
+  const tiles = await Promise.all(jobs.map(([x,y]) => addrArchive.getZxy(z, x, y).then(t => ({x, y, t})).catch(() => null)));
+  for (const r of tiles){
+    if (!r || !r.t || !r.t.data) continue;
+    const vt = new overtureLib.VectorTile(new overtureLib.Pbf(new Uint8Array(r.t.data)));
+    for (const name in vt.layers){
+      const lyr = vt.layers[name];
+      for (let i=0; i<lyr.length; i++){
+        const f = lyr.feature(i), p = f.properties;
+        if (String(p.number).toUpperCase() !== String(number).toUpperCase() || !streetMatches(street, p.street)) continue;
+        const c = f.toGeoJSON(r.x, r.y, z).geometry.coordinates;
+        return {lat: c[1], lon: c[0], street: p.street};
+      }
+    }
+  }
+  return null;
+}
+
+// local flat coordinates in feet around a reference latitude
+function toXY(p, lat0){ const k = 364567.2; return [p[1]*k*Math.cos(lat0*Math.PI/180), p[0]*k]; }
+function nearestOnSeg(p, a, b){
+  const dx=b[0]-a[0], dy=b[1]-a[1], L2=dx*dx+dy*dy; let t = L2 ? ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2 : 0;
+  t=Math.max(0,Math.min(1,t)); return [a[0]+t*dx, a[1]+t*dy];
+}
+// long and short side of the smallest rectangle around the outline (for the ridge estimate)
+function boxDims(xy){
+  let best=null;
+  for (let i=0;i<xy.length-1;i++){
+    const ang=Math.atan2(xy[i+1][1]-xy[i][1], xy[i+1][0]-xy[i][0]), c=Math.cos(ang), s=Math.sin(ang);
+    let a0=Infinity,a1=-Infinity,b0=Infinity,b1=-Infinity;
+    for (const p of xy){ const u=p[0]*c+p[1]*s, v=-p[0]*s+p[1]*c; a0=Math.min(a0,u);a1=Math.max(a1,u);b0=Math.min(b0,v);b1=Math.max(b1,v); }
+    const A=(a1-a0)*(b1-b0); if(!best||A<best.A) best={A, L:Math.max(a1-a0,b1-b0), W:Math.min(a1-a0,b1-b0)};
+  }
+  return best || {L:0, W:0};
+}
+
+function drawBuildings(els, lat, lon, roadName, forceId){
+  layer.clearLayers(); st.edges = [];
+  const ways = els.filter(e => e.tags && e.tags.building && e.geometry);
+  const roads = els.filter(e => e.tags && e.tags.highway && e.geometry);
+  const pt = [lat, lon];
+  // main house = the outline containing the point, else the nearest one
+  let main = forceId || null, best = Infinity;
+  for (const w of (forceId ? [] : ways)){
+    const poly = w.geometry.map(g => [g.lat, g.lon]);
+    if (pointInPoly(pt, poly)){ main = w.id; break; }
+    const c = poly.reduce((a,p)=>[a[0]+p[0]/poly.length, a[1]+p[1]/poly.length],[0,0]);
+    const d = ftBetween(pt, c); if (d < best){ best = d; main = w.id; }
+  }
+  // the street the address is on (by name), else the closest named street
+  const mainWay = ways.find(w => w.id === main);
+  let front = null;
+  if (mainWay){
+    const xy = mainWay.geometry.map(g => toXY([g.lat,g.lon], lat));
+    const cen = xy.slice(0,-1).reduce((a,p,_,arr)=>[a[0]+p[0]/arr.length, a[1]+p[1]/arr.length],[0,0]);
+    const norm = n => (n||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    let cands = roads.filter(r => roadName && norm(r.tags.name) === norm(roadName));
+    if (!cands.length) cands = roads;
+    let bestD = Infinity;
+    for (const r of cands){
+      const rxy = r.geometry.map(g => toXY([g.lat,g.lon], lat));
+      for (let i=0;i<rxy.length-1;i++){ const q = nearestOnSeg(cen, rxy[i], rxy[i+1]); const d = Math.hypot(q[0]-cen[0], q[1]-cen[1]); if (d < bestD){ bestD = d; front = [q[0]-cen[0], q[1]-cen[1]]; st.road = r.tags.name; } }
+    }
+    const dims = boxDims(xy);
+    st.ridgeEst = Math.max(0, Math.round(dims.L - dims.W/2)); st.ridge = st.ridgeEst;
+  }
+  const bounds = [];
+  for (const w of ways){
+    const isMain = w.id === main;
+    const poly = w.geometry.map(g => [g.lat, g.lon]);
+    const xy = poly.map(p => toXY(p, lat));
+    let area = 0; for (let i=0;i<xy.length-1;i++) area += xy[i][0]*xy[i+1][1] - xy[i+1][0]*xy[i][1];
+    const ccw = area > 0;
+    if (isMain) bounds.push(...poly);
+    for (let i=0; i<poly.length-1; i++){
+      const a = poly[i], b = poly[i+1], len = ftBetween(a, b);
+      if (len < 0.5) continue;
+      // which way this wall faces: front (toward the street), back, or side
+      let face = "side";
+      if (isMain && front){
+        const dx = xy[i+1][0]-xy[i][0], dy = xy[i+1][1]-xy[i][1];
+        const n = ccw ? [dy, -dx] : [-dy, dx], nl = Math.hypot(n[0],n[1]) || 1, fl = Math.hypot(front[0],front[1]) || 1;
+        const cos = (n[0]*front[0] + n[1]*front[1]) / nl / fl;
+        face = cos > 0.6 ? "front" : (cos < -0.6 ? "back" : "side");
+      }
+      const e = {len, on:false, main:isMain, face};
+      const vis = L.polyline([a,b], {color: isMain ? "#1f5a3d" : "#8a978f", weight: isMain ? 4 : 2, opacity: isMain ? 1 : .7}).addTo(layer);
+      const hit = L.polyline([a,b], {color:"#000", weight:22, opacity:0}).addTo(layer);
+      if (isMain && len >= 6){
+        vis.bindTooltip(Math.round(len) + "'", {permanent:true, direction:"center", className:"len"});
+      }
+      e.vis = vis;
+      hit.on("click", () => {
+        if (!isMain){ drawBuildings(st.lastEls, lat, lon, roadName, w.id); toast("Switched to that house"); return; }
+        e.on = !e.on; paintEdge(e); update();
+      });
+      st.edges.push(e);
+    }
+  }
+  L.circleMarker(pt, {radius:4, color:"#b4441c", weight:2, fillOpacity:1}).addTo(layer);
+  if (bounds.length) map.fitBounds(bounds, {padding:[24,24], maxZoom:20}); else map.setView(pt, 19);
+  applySides();
+  $("map-hint").textContent = !ways.length
+    ? "No outline on file for this house. Type the feet below instead."
+    : (st.exact === false && !forceId ? "Couldn't pin the exact house number. If the green outline is the wrong house, tap the right one. " : "")
+      + (front ? `Gold walls face ${st.road || "the street"}. Tap any wall to add or remove it. Numbers are feet.`
+               : "Couldn't find the street, so pick walls by tapping them. Numbers are feet.");
+}
+function applySides(){
+  st.edges.forEach(e => { if (e.main){ e.on = !!st.sides[e.face]; paintEdge(e); } });
+  update();
+}
+function paintEdge(e){
+  e.vis.setStyle({color: e.on ? "#e8a317" : (e.main ? "#1f5a3d" : "#8a978f"), weight: e.on ? 7 : (e.main ? 4 : 2), opacity:1});
+  const tt = e.vis.getTooltip(); if (tt){ const el = tt.getElement(); if (el) el.classList.toggle("on", e.on); }
+}
+
+$("addr-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const q = $("addr").value.trim(); if (!q) return;
+  $("addr-results").innerHTML = ""; $("map-hint").textContent = "Looking up the address…";
+  try{
+    const res = await geocode(q);
+    if (!res.length){ $("map-hint").textContent = "Couldn't find that address. Add the city, or type the feet below."; return; }
+    if (res.length === 1 || res[0].importance - (res[1]?.importance||0) > .15) return pick(res[0]);
+    for (const r of res){
+      const b = document.createElement("button"); b.type="button"; b.textContent = r.display_name;
+      b.onclick = () => { $("addr-results").innerHTML = ""; pick(r); };
+      $("addr-results").appendChild(b);
+    }
+    $("map-hint").textContent = "Pick the right address.";
+  }catch(e){ $("map-hint").textContent = e.message + ". Check your signal and try again, or type the feet below."; }
+});
+async function pick(r){
+  st.lat = +r.lat; st.lon = +r.lon; st.address = r.display_name.split(",").slice(0,3).join(",").trim();
+  // OpenStreetMap often knows the street but not the house number; then look the number up in the county address points
+  const typed = $("addr").value.match(/^\s*(\d+[A-Za-z]?)\s+([^,]+)/);
+  st.exact = !!(r.address && r.address.house_number);
+  // Always prefer the county address point: Nominatim's US house numbers are often interpolated onto the
+  // street centerline (found 11/16 in Corona: the pin sat in the road and grabbed the house across the street).
+  if (typed){
+    $("map-hint").textContent = "Finding the exact house number…";
+    try{
+      const hit = await overtureAddress(typed[1], typed[2], st.lat, st.lon);
+      if (hit){
+        st.lat = hit.lat; st.lon = hit.lon; st.exact = true;
+        const city = (r.address && (r.address.city || r.address.town || r.address.village)) || "";
+        st.address = [typed[1] + " " + typed[2].trim(), city].filter(Boolean).join(", ");
+      } else st.exact = false; // keep Nominatim's point; the hint asks him to tap the right house if needed
+    }catch(e){ console.warn("address points", e); st.exact = false; }
+  }
+  $("gmaps").href = "https://www.google.com/maps/search/?api=1&query=" + st.lat + "," + st.lon;
+  $("gmaps").hidden = false;
+  map.setView([st.lat, st.lon], 19);
+  $("map-hint").textContent = "Loading the house outline…";
+  try{
+    const els = await buildingsNear(st.lat, st.lon);
+    st.lastEls = els; st.lastRoad = r.address && r.address.road;
+    drawBuildings(els, st.lat, st.lon, st.lastRoad);
+  }
+  catch(e){ $("map-hint").textContent = e.message + ". Try again in a few seconds, or type the feet below."; }
+  update();
+}
+document.querySelectorAll("[data-side]").forEach(b => b.onclick = () => {
+  const k = b.dataset.side; st.sides[k] = !st.sides[k]; b.setAttribute("aria-pressed", st.sides[k]); applySides();
+});
+document.querySelectorAll("[data-line]").forEach(b => b.onclick = () => {
+  const k = b.dataset.line; st.lines[k] = !st.lines[k]; b.setAttribute("aria-pressed", st.lines[k]);
+  $("ridge-row").hidden = !st.lines.ridge; update();
+});
+$("ridge-minus").onclick = () => { st.ridge = Math.max(0, st.ridge - 5); update(); };
+$("ridge-plus").onclick = () => { st.ridge += 5; update(); };
+$("sel-none").onclick = () => { st.edges.forEach(e => { e.on = false; paintEdge(e); }); update(); };
+
+// ---------- inputs ----------
+function setStory(n){
+  st.story = n; $("st-1").setAttribute("aria-pressed", n===1); $("st-2").setAttribute("aria-pressed", n===2);
+  st.rate.roof = n===1 ? 6.5 : 7.5; update();
+}
+$("st-1").onclick = () => setStory(1); $("st-2").onclick = () => setStory(2);
+$("manual-feet").addEventListener("input", update);
+document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { const k = b.dataset.step; st[k] = Math.max(0, st[k] + +b.dataset.d); update(); });
+document.querySelectorAll("[data-rate]").forEach(b => b.onclick = () => {
+  const k = b.dataset.rate, R = RATES[k];
+  st.rate[k] = Math.min(R.max, Math.max(R.min, +(st.rate[k] + R.step * +b.dataset.d).toFixed(2))); update();
+});
+$("add-tree").onclick = () => { st.trees.push(6); renderTrees(); update(); };
+function renderTrees(){
+  const box = $("trees"); box.innerHTML = "";
+  st.trees.forEach((h, i) => {
+    const row = document.createElement("div"); row.className = "stepper";
+    row.innerHTML = `<span>Tree ${i+1}, height <button type="button" class="btn small" aria-label="Remove tree ${i+1}">Remove</button></span>
+      <div class="ctl"><button type="button" aria-label="Shorter">−</button><output>${h} ft</output><button type="button" aria-label="Taller">+</button></div>`;
+    const [rm, minus, plus] = row.querySelectorAll("button");
+    rm.onclick = () => { st.trees.splice(i,1); renderTrees(); update(); };
+    minus.onclick = () => { st.trees[i] = Math.max(2, h-1); renderTrees(); update(); };
+    plus.onclick = () => { st.trees[i] = Math.min(20, h+1); renderTrees(); update(); };
+    box.appendChild(row);
+  });
+}
+
+// ---------- math ----------
+function scopeText(){
+  const sd = ["front","side","back"].filter(k => st.sides[k]).map(k => k === "side" ? "sides" : k);
+  const ln = ["gutters","peaks","ridge"].filter(k => st.lines[k]);
+  if ($("manual-feet").value) return "";
+  return [sd.join(" + "), ln.join(" + ")].filter(Boolean).join(", ");
+}
+function measured(){ return st.edges.filter(e => e.on).reduce((s,e) => s + e.len, 0); }
+function quoteFeet(){
+  const man = parseFloat($("manual-feet").value);
+  if (man > 0) return {feet: Math.round(man), src:"typed"};
+  const m = measured(), parts = [];
+  const gut = st.lines.gutters ? m * (1 + S.overhang/100) : 0;
+  const pk = st.lines.peaks ? m * S.peaks/100 : 0;
+  const rg = st.lines.ridge ? st.ridge : 0;
+  if (gut) parts.push(`gutters ${Math.round(gut)}`);
+  if (pk) parts.push(`peaks ${Math.round(pk)}`);
+  if (rg) parts.push(`ridge ${Math.round(rg)}`);
+  return {feet: Math.round(gut + pk + rg), src: parts.length ? parts.join(" + ") + " ft" : ""};
+}
+function priceAt(r){
+  const {feet} = quoteFeet(), nets = st.small + 2*st.big, treeFt = st.trees.reduce((a,b)=>a+b,0);
+  const roof = feet * r.roof, bush = nets * r.net, tree = treeFt * r.tree;
+  return {feet, nets, treeFt, roof, bush, tree, total: roof + bush + tree};
+}
+function costs(p){
+  const materials = p.feet*S.costft + p.nets*S.costnet + p.treeFt*S.coststrand;
+  const install = p.feet/S.pace + p.nets*S.netmin/60 + p.treeFt*S.strandmin/60;
+  const down = p.feet/S.downpace + p.nets*(S.netmin/2)/60 + p.treeFt*(S.strandmin/2)/60;
+  return {materials, install, down, hours: install + down};
+}
+
+function update(){
+  const q = quoteFeet();
+  $("feet-out").textContent = q.feet; $("feet-detail").textContent = q.src; $("ridge-out").textContent = st.ridge + " ft";
+  $("small-out").textContent = st.small; $("big-out").textContent = st.big;
+  $("roof-rate").textContent = money2(st.rate.roof); $("net-rate").textContent = money(st.rate.net); $("tree-rate").textContent = money(st.rate.tree);
+  const p = priceAt(st.rate);
+  const sc = scopeText(); $("q-roof-label").textContent = `Roofline lights, ${p.feet} ft` + (sc ? ` (${sc})` : ""); $("q-roof").textContent = money(p.roof);
+  $("q-bush-row").hidden = !p.nets; $("q-bush-label").textContent = `Bushes, ${st.small + st.big}`; $("q-bush").textContent = money(p.bush);
+  $("q-tree-row").hidden = !st.trees.length; $("q-tree-label").textContent = `Trees, ${st.trees.length}`; $("q-tree").textContent = money(p.tree);
+  $("q-total").textContent = money(p.total);
+  const h1 = Math.ceil(p.total/2); $("q-half1").textContent = money(h1); $("q-half2").textContent = money(p.total - h1);
+  // private numbers
+  const lo = priceAt({roof:RATES.roof.min, net:RATES.net.min, tree:RATES.tree.min});
+  const hi = priceAt({roof:RATES.roof.max, net:RATES.net.max, tree:RATES.tree.max});
+  const c = costs(p);
+  const rows = [
+    ["Price", lo.total, p.total, hi.total],
+    ["Materials", c.materials, c.materials, c.materials],
+    ["Profit", lo.total-c.materials, p.total-c.materials, hi.total-c.materials],
+    ["Per hour of your time", c.hours ? (lo.total-c.materials)/c.hours : 0, c.hours ? (p.total-c.materials)/c.hours : 0, c.hours ? (hi.total-c.materials)/c.hours : 0]
+  ];
+  $("ours-body").innerHTML = rows.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${money(v)}</td>`).join("")}</tr>`).join("");
+  $("ours-time").textContent = p.total ? `About ${c.install.toFixed(1)} h to install and ${c.down.toFixed(1)} h to take down, working solo.` : "";
+  const fl = $("flag-license");
+  fl.hidden = p.total < 1000;
+  fl.textContent = "This quote is $1,000 or more. Without a contractor license, California caps a job at under $1,000 (labor and materials). Trim the scope or check with CSLB before you sign it.";
+}
+
+// settings
+const SKEYS = Object.keys(DEFAULTS);
+SKEYS.forEach(k => { const el = $("s-"+k); el.value = S[k]; el.addEventListener("input", () => {
+  if (k === "seller"){ S.seller = el.value; store.set("lq-settings", S); return; }
+  const v = parseFloat(el.value); if (v > 0 || ((k === "overhang" || k === "peaks") && v >= 0)){ S[k] = v; store.set("lq-settings", S); update(); } }); });
+$("cost-hq").onclick = () => { S.costft = 1.99; $("s-costft").value = 1.99; store.set("lq-settings", S); update(); };
+$("cost-bulk").onclick = () => { S.costft = 1.00; $("s-costft").value = 1.00; store.set("lq-settings", S); update(); };
+
+// ---------- leads ----------
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function smsLink(phone, body){ return "sms:" + phone.replace(/[^\d+]/g, "") + (isIOS ? "&" : "?") + "body=" + encodeURIComponent(body); }
+function quoteText(lead){
+  const p = lead.quote, first = (lead.name || "").split(" ")[0];
+  const me = (S.seller || "").trim();
+  const hi = `Hi${first ? " " + first : ""}, `;
+  const parts = [me ? `${hi}it's ${me} with the Christmas lights. Here's your quote for ${lead.address || "your home"}:`
+                    : `${hi}here's your Christmas lights quote for ${lead.address || "your home"}:`];
+  parts.push(`Roofline lights (${p.feet} ft${p.scope ? ", " + p.scope : ""}): ${money(p.roof)}`);
+  if (p.nets) parts.push(`Bushes (${p.bushes}): ${money(p.bush)}`);
+  if (p.trees) parts.push(`Trees (${p.trees}): ${money(p.tree)}`);
+  parts.push(`Total ${money(p.total)}: half (${money(p.half1)}) after setup, half (${money(p.total - p.half1)}) at takedown.`);
+  parts.push("The lights are yours to keep, and takedown is included. Text back if you'd like a spot on the schedule. Reply STOP and I won't text again.");
+  return parts.join("\n");
+}
+const FOLLOW = [
+  {days:0, text: l => `Hi${l.name ? " " + l.name.split(" ")[0] : ""}, thanks for talking with me today about Christmas lights. Your quote is ${money(l.quote.total)} all in. Any questions, just text back.`},
+  {days:3, text: l => `Hi${l.name ? " " + l.name.split(" ")[0] : ""}, checking in on the Christmas lights for ${l.address || "your home"}. I'm filling install dates now. Want me to hold one for you?`},
+  {days:"dec1", text: l => `Hi${l.name ? " " + l.name.split(" ")[0] : ""}, last few install slots before Christmas this week. Your quote is still ${money(l.quote.total)}. Want one?`}
+];
+function nextDue(lead){
+  if (["won","lost","stop"].includes(lead.status) || lead.touches >= FOLLOW.length || !lead.consent) return null;
+  const f = FOLLOW[lead.touches], base = new Date(lead.created);
+  if (f.days === "dec1"){ const d = new Date(base.getFullYear(), 11, 1); const min = new Date(+base + 6*864e5); return d > min ? d : min; }
+  const d = new Date(base); d.setDate(d.getDate() + f.days); return d;
+}
+const leads = () => store.get("lq-leads", []);
+function saveLead(sent){
+  const name = $("c-name").value.trim(), phone = $("c-phone").value.trim();
+  const p = priceAt(st.rate);
+  if (!p.total){ toast("Measure the house first"); return null; }
+  if (sent && !phone){ toast("Add their phone number"); return null; }
+  if (sent && !$("c-consent").checked){ toast("Ask if it's OK to text them first"); return null; }
+  const lead = { id: Date.now().toString(36), created: Date.now(), name, phone, address: st.address || $("addr").value.trim(),
+    consent: $("c-consent").checked, status: "quoted", touches: sent ? 1 : 0, note: "",
+    quote: {feet:p.feet, roof:p.roof, nets:p.nets, bushes: st.small + st.big, bush:p.bush, trees: st.trees.length, treeFt:p.treeFt, tree:p.tree, total:p.total, half1:Math.ceil(p.total/2), rates: {...st.rate}, story: st.story, scope: scopeText()} };
+  const all = leads(); all.unshift(lead); store.set("lq-leads", all); renderLeads();
+  setTimeout(() => { $("c-name").value = ""; $("c-phone").value = ""; $("c-consent").checked = false; }, 1500);
+  return lead;
+}
+$("send-quote").onclick = () => { const l = saveLead(true); if (l){ location.href = smsLink(l.phone, quoteText(l)); toast("Saved. Messages should open now"); } };
+$("save-only").onclick = () => { const l = saveLead(false); if (l) toast("Quote saved"); };
+
+function renderLeads(){
+  const all = leads(), now = new Date(); now.setHours(23,59,59);
+  const due = all.filter(l => { const d = nextDue(l); return d && d <= now; });
+  $("due-count").textContent = due.length ? `(${due.length})` : "";
+  const card = (l, showDue) => {
+    const d = nextDue(l), el = document.createElement("div"); el.className = "lead";
+    const status = {quoted:"Quoted", won:"Won", lost:"Lost", stop:"Do not text"}[l.status];
+    el.innerHTML = `<div class="who"><span></span><span class="pill ${l.status==="won"?"won":(showDue?"due":"")}"></span></div>
+      <div class="muted"></div>
+      <div class="row"></div>`;
+    el.querySelector(".who span").textContent = (l.name || "No name") + " · " + money(l.quote.total);
+    el.querySelector(".pill").textContent = showDue ? "Text today" : (d ? "Next " + d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) : status);
+    el.querySelector(".muted").textContent = [l.address, l.phone, new Date(l.created).toLocaleDateString("en-US",{month:"short",day:"numeric"})].filter(Boolean).join(" · ");
+    const row = el.querySelector(".row");
+    if (showDue && l.phone){
+      const a = document.createElement("a"); a.className = "btn small primary"; a.textContent = "Send follow-up " + (l.touches+1);
+      a.href = smsLink(l.phone, FOLLOW[l.touches].text(l));
+      a.onclick = () => { setTimeout(() => { mutate(l.id, x => x.touches++); }, 400); };
+      row.appendChild(a);
+    }
+    const sel = document.createElement("select"); sel.setAttribute("aria-label","Status"); sel.style.width = "auto";
+    for (const [v,t] of [["quoted","Quoted"],["won","Won"],["lost","Lost"],["stop","Do not text"]]){ const o = new Option(t, v, false, l.status===v); sel.add(o); }
+    sel.onchange = () => mutate(l.id, x => x.status = sel.value);
+    row.appendChild(sel);
+    return el;
+  };
+  const dueBox = $("leads-due"); dueBox.innerHTML = "";
+  if (!due.length) dueBox.innerHTML = '<p class="muted">Nobody to text today.</p>';
+  due.forEach(l => dueBox.appendChild(card(l, true)));
+  const allBox = $("leads-all"); allBox.innerHTML = "";
+  if (!all.length) allBox.innerHTML = '<p class="muted">Saved quotes show up here.</p>';
+  all.forEach(l => allBox.appendChild(card(l, false)));
+}
+function mutate(id, fn){ const all = leads(); const l = all.find(x => x.id === id); if (l){ fn(l); store.set("lq-leads", all); renderLeads(); } }
+$("export").onclick = async () => {
+  const txt = JSON.stringify(leads(), null, 1);
+  try{ await navigator.clipboard.writeText(txt); toast("Copied. Paste it in a text to yourself"); }
+  catch(e){ toast("Couldn't copy on this phone"); }
+};
+
+// ---------- tabs ----------
+function showTab(t){
+  $("view-quote").style.display = t==="quote" ? "grid" : "none"; $("view-leads").style.display = t==="leads" ? "grid" : "none";
+  $("tab-quote").setAttribute("aria-selected", t==="quote"); $("tab-leads").setAttribute("aria-selected", t==="leads");
+  if (t === "quote") setTimeout(() => map.invalidateSize(), 50);
+}
+$("tab-quote").onclick = () => showTab("quote"); $("tab-leads").onclick = () => showTab("leads");
+
+renderTrees(); renderLeads(); update();
+</script>
+</body>
+</html>
