@@ -1485,16 +1485,28 @@ const dmap = L.map("dmap", {zoomControl:true}).setView([33.85,-117.75], 9);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:20, maxNativeZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Addresses © <a href="https://overturemaps.org">Overture Maps</a>'}).addTo(dmap);
 const dlayer = L.layerGroup().addTo(dmap);
 let meDot = null, pickDot = null;
+// 11/17 his report "my location's not updating": iPhone silently kills the watch when the app is put away,
+// so restart it whenever the app comes back, after an error, and if no fix arrives for 30 s.
+let lastFixAt = 0, gpsStartedAt = 0, gpsRetry = null;
 function startGPS(){
   if (watchId !== null || !navigator.geolocation) return;
-  watchId = navigator.geolocation.watchPosition(onFix, () => { if (!here) $("d-hint").textContent = "Location is off. Tap a house to pick it."; },
-    {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+  gpsStartedAt = Date.now();
+  watchId = navigator.geolocation.watchPosition(onFix, () => {
+    if (!here) $("d-hint").textContent = "Location is off. Tap a house to pick it.";
+    clearTimeout(gpsRetry); gpsRetry = setTimeout(restartGPS, 5000);
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
 }
-function stopGPS(){ if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; } }
+function stopGPS(){ clearTimeout(gpsRetry); if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; } }
+const onDoors = () => $("view-doors").style.display !== "none" && document.visibilityState === "visible";
+function restartGPS(){ if (!onDoors()) return; stopGPS(); startGPS(); }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") restartGPS(); else stopGPS(); });
+addEventListener("pageshow", restartGPS);
+setInterval(() => { if (onDoors() && Date.now() - Math.max(lastFixAt, gpsStartedAt) > 30000) restartGPS(); }, 10000);
 let following = true, meRing = null;
 function onFix(pos){
   const {latitude:lat, longitude:lon, accuracy} = pos.coords;
   here = {glat:lat, glon:lon, acc:accuracy};
+  lastFixAt = Date.now();
   if (!meDot){
     meRing = L.circle([lat, lon], {radius:accuracy, color:"#17231d", weight:1, opacity:.35, fillColor:"#17231d", fillOpacity:.08, interactive:false}).addTo(dmap);
     meDot = L.circleMarker([lat, lon], {radius:8, color:"#fff", weight:3, fillColor:"#17231d", fillOpacity:1, interactive:false}).addTo(dmap);
@@ -1777,7 +1789,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117163739";
+const APP_VERSION = "20261117165031";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
