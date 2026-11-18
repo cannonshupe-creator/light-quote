@@ -159,6 +159,12 @@ details.comeback.due>summary{color:var(--warn)}
 .outs2 button i{width:22px;height:22px;border-radius:99px;background:var(--c);flex:none;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .outs2 button:active{border-color:var(--c)}
 .outs2 #sale-btn{border-color:#2e9e5b;background:#2e9e5b;color:#fff}
+.nosync{background:#c0392b;color:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px}
+.nosync>button{all:unset;display:block;width:100%;font:800 17px var(--body);cursor:pointer}
+.nosync small{display:block;font:500 13px var(--body);opacity:.95;margin-top:3px}
+.nosync .row{display:flex;gap:6px;margin-top:10px}
+.nosync input{flex:1;min-width:0;font-size:16px;padding:10px;border-radius:10px;border:0}
+.nosync .btn{background:#fff;color:#c0392b;font-weight:800}
 .updpill{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:1200;border:0;background:var(--pine);color:var(--pine-ink);border-radius:99px;padding:10px 16px;font:700 14px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.25)}
 
 </style>
@@ -377,6 +383,13 @@ details.comeback.due>summary{color:var(--warn)}
       <button id="d-today-chip" class="dchip" type="button">Today 0</button>
       <button id="d-cb-chip" class="dchip" type="button">Come back 0</button>
       <button id="d-sync-dot" class="sdot" type="button" aria-label="Sync status"></button>
+    </div>
+    <div id="d-nosync" class="nosync" hidden>
+      <button id="nj-open" type="button">NOT SYNCING – tap to join<small id="nj-sub">The other phone can't see your marks yet.</small></button>
+      <div id="nj-box" hidden>
+        <small>Paste the team invite link (from the text, or from the other phone: Doors &gt; tap your name &gt; Invite a teammate).</small>
+        <div class="row"><input id="nj-in" type="text" placeholder="Paste the invite link" autocomplete="off"><button class="btn small" id="nj-go" type="button">Join</button></div>
+      </div>
     </div>
     <div class="dmapwrap">
       <div id="dmap"></div>
@@ -1326,6 +1339,18 @@ function joinFromLink(text){
   return joinedNow;
 }
 // A Home Screen app keeps its own storage, separate from Safari, so the link can also be pasted in here.
+// 11/17 4:4x PM his yes: an app that isn't joined shows a loud red bar on Doors (Home Screen app and Safari join separately)
+function showNoSync(){
+  const off = !team(), el = $("d-nosync"); if (!el) return;
+  const was = el.hidden; el.hidden = !off;
+  if (off){ const n = store.get(OUTBOX, []).length; $("nj-sub").textContent = n ? `${n} tap${n === 1 ? "" : "s"} saved on this phone. They send the moment you join.` : "The other phone can't see your marks yet."; }
+  if (was !== el.hidden && $("view-doors").style.display !== "none") setTimeout(sizeMap, 30);
+}
+$("nj-open").onclick = () => { $("nj-box").hidden = !$("nj-box").hidden; if (!$("nj-box").hidden) $("nj-in").focus(); setTimeout(sizeMap, 30); };
+$("nj-go").onclick = () => {
+  if (!joinFromLink($("nj-in").value)){ toast("That isn't an invite link"); return; }
+  $("nj-in").value = ""; $("nj-box").hidden = true; queueLeadChanges(leads()); syncStatus(); syncNow();
+};
 $("join-go").onclick = () => {
   if (!joinFromLink($("join-in").value)){ toast("That isn't an invite link"); return; }
   $("join-in").value = ""; queueLeadChanges(leads()); syncStatus(); syncNow();
@@ -1415,6 +1440,7 @@ function syncStatus(){
   else msg = last ? "✓ All saved to the team sheet · " + new Date(last).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"}) : "Not synced yet.";
   for (const id of ["sync-status", "sync-status-l", "sync-status-d"]){ const el = $(id); if (el){ el.textContent = msg; el.classList.toggle("warn", !!(t && (n || syncErr) && !syncing)); } }
   $("invite").hidden = !t;
+  showNoSync();
   const dot = $("d-sync-dot"); dot.className = "sdot" + (!t ? "" : syncErr && /team code/.test(syncErr) ? " bad" : (n || syncErr) ? " wait" : " ok"); dot.title = msg;
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
@@ -1751,7 +1777,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117162911";
+const APP_VERSION = "20261117163739";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
