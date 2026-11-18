@@ -472,7 +472,7 @@ const PEAKS = 0.12;            // slanted gable edges run ~12% longer than the w
 const RIDGE_EXTRA = 1;         // ridge is priced $1/ft above the gutter rate: it means walking the roof
 // His call 11/17: 70% after setup, 30% at takedown (was 50/50). Setup is done before the 70% is due.
 const SPLIT = 0.70;
-function firstPay(t){ return Math.ceil(t * SPLIT); }
+function firstPay(t){ return Math.floor(t * SPLIT + 1e-9); }   // rounded down (his call 11/17); the takedown payment gets the rest
 const STEP_MAX = 20;           // ft: a side wall this short between two front walls is a step in the front gutter
 const CAP = 1000;              // unlicensed solo limit (CSLB minor work); shown only in Our numbers
 const st = { story:1, wrap:"front", edges:[], small:0, big:0, trunk:0, canS:0, canM:0, canL:0, walk:0, level:1,
@@ -1807,7 +1807,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117170703";
+const APP_VERSION = "20261117191749";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
