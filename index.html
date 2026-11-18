@@ -1418,7 +1418,7 @@ function syncStatus(){
   const dot = $("d-sync-dot"); dot.className = "sdot" + (!t ? "" : syncErr && /team code/.test(syncErr) ? " bad" : (n || syncErr) ? " wait" : " ok"); dot.title = msg;
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
-setInterval(() => { if (document.visibilityState === "visible") syncNow(); }, 60000);
+setInterval(() => { if (document.visibilityState === "visible") syncNow(); }, 10000);   // every 10 s while open, so the other phone's marks show up fast
 $("sync-now").onclick = () => { if (!team()){ toast("Open the invite link on this phone first"); return; } syncNow(); };
 $("invite").onclick = async () => {
   const link = inviteLink(), text = "Light Quote team link. Open Light Quote the way you always do (Safari or your Home Screen icon), go to Doors > Team sync > Join with an invite link, and paste this (in Safari you can also just tap it): " + link;
@@ -1751,7 +1751,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117132135";
+const APP_VERSION = "20261117162911";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
