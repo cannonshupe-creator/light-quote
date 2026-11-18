@@ -411,6 +411,7 @@ details.comeback.due>summary{color:var(--warn)}
         </div>
         <div class="row" style="margin-top:10px"><button class="btn" id="d-quote" type="button">Make a quote</button><button class="btn" id="d-type" type="button">Wrong house? Type it</button></div>
         <div class="row" id="d-fix-row" hidden style="margin-top:8px"><input id="d-fix" type="text" placeholder="House number and street" autocomplete="off"><button class="btn small" id="d-fix-go" type="button">Use</button></div>
+        <button class="btn small" id="d-remove" type="button" hidden style="margin-top:12px;width:100%;color:#c0392b;border-color:#e6b3ad">Remove mark</button>
       </div>
       <div class="later-box" id="later-box" hidden>
         <b id="later-addr">Come back later</b>
@@ -1538,6 +1539,7 @@ function showTarget(){
   if (!t) return;
   $("d-addr").textContent = t.address || "Address not found yet";
   $("d-sub").textContent = d ? "Last: " + doorLine(d) : "Not knocked yet";
+  $("d-remove").hidden = !d; $("d-remove").textContent = "Remove mark";
   if (t.lat != null) pickDot = L.circleMarker([t.lat, t.lon], {radius:16, color:"#e8a317", weight:5, fill:false, interactive:false}).addTo(dmap);
 }
 // ---- sheets: one open at a time; the house sheet sits under the house so the highlighted house stays in view
@@ -1624,6 +1626,18 @@ $("d-fix-go").onclick = () => {
 $("d-quote").onclick = () => { const t = target(); if (!t) return; const d = Object.assign({}, t); closeSheets(); startQuote(d); };
 document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => knock(b.dataset.door));
 let laterFor = null, laterWhen = "", armed = null;
+// 11/17 his ask: take a wrong mark off the map (two taps; it leaves both phones and the counts)
+$("d-remove").onclick = () => {
+  const t = target(), d = t && findDoor(t); if (!d) return;
+  if (!armedOk("rm|" + d.id)){
+    $("d-remove").textContent = "Tap again to remove " + (d.address || "this mark");
+    setTimeout(() => { if (!armed || armed.key !== "rm|" + d.id) $("d-remove").textContent = "Remove mark"; }, 5100);
+    return;
+  }
+  const ds = store.get(DOORS, {}); delete ds[d.id]; store.set(DOORS, ds);
+  enqueue("door", d.id, {id: d.id, remove: true});
+  closeSheets(); renderDoors(); toast("Removed: " + (d.address || "mark"));
+};
 function armedOk(key){
   if (armed && armed.key === key && Date.now() - armed.at < 5000){ armed = null; $("sale-btn").innerHTML = "<i></i>Sale"; return true; }
   armed = {key, at: Date.now()};
@@ -1644,14 +1658,18 @@ function knock(outcome){
     toast(`This house is a Sale. Tap "${OUT[outcome].label}" again to change it.`); return;
   }
   if (!d) d = {id: rid(), address: t.address || "", addrKey: t.addrKey || "", lat: t.lat, lon: t.lon, outcome: "", knocks: 0};
-  const kept = outcome === "none" && d.outcome && d.outcome !== "none";
+  // 11/17 his ask: fixing your own mark from the last 15 min replaces it (No answer too) and isn't a new knock
+  const fix = !!(d.outcome && d.outBy === S.seller && Date.now() - (d.outAt || 0) < 15 * 60000);   // only whoever set the current answer
+  const kept = outcome === "none" && d.outcome && d.outcome !== "none" && !fix;
+  if (!kept && d.outcome !== outcome){ d.outBy = S.seller; d.outAt = Date.now(); }
   if (!kept) d.outcome = outcome;
   if (outcome === "later") d.laterBy = S.seller;
-  d.knocks = (d.knocks || 0) + 1; d.seller = S.seller; d.updated = Date.now();
+  if (!fix) d.knocks = (d.knocks || 0) + 1;
+  d.seller = S.seller; d.updated = Date.now();
   ds[d.id] = d; store.set(DOORS, ds);
-  enqueue("door", d.id, Object.assign({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome}, outcome === "later" ? {laterBy: S.seller} : {}));
+  enqueue("door", d.id, Object.assign({id:d.id, address:d.address, addrKey:d.addrKey, lat:d.lat, lon:d.lon, outcome}, outcome === "later" ? {laterBy: S.seller} : {}, fix ? {fix:true} : {}));
   renderDoors();
-  toast(kept ? `Kept "${OUT[d.outcome].label}" (No answer doesn't replace it)` : `${OUT[outcome].label}: ${d.address || "saved"}`);
+  toast(kept ? `Kept "${OUT[d.outcome].label}". Wrong? Use Remove mark.` : `${OUT[outcome].label}: ${d.address || "saved"}`);
   // Come back later is saved already; the sheet now asks when and who (council #6: a tap must never wait on typing)
   if (outcome === "later" && !kept){
     laterFor = d.id; const w = parseWhen(d.when); laterWhen = w.when || "tonight"; laterDay = w.day; laterTime = w.time;
@@ -1789,7 +1807,7 @@ $("who").addEventListener("change", () => {
 showWho(); renderDoors(); syncStatus();
 // New version check (council #8): when the app comes back to the front and every 30 min.
 // Refreshes by itself only when nothing is open; otherwise a "New version ready" pill. Taps are saved first, so nothing is lost.
-const APP_VERSION = "20261117165031";
+const APP_VERSION = "20261117170703";
 function idleForReload(){
   if (!$("dsheet").hidden || !$("cbsheet").hidden || !$("tsheet").hidden) return false;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false;
